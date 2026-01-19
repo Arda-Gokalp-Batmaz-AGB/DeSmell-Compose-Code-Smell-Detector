@@ -1,0 +1,56 @@
+Eğer groovy gradle ise
+(build gradle)
+    lintChecks("com.arda:compose-code-smell-detector:1.1.2")
+
+
+(settings gradle)
+def localProps = new Properties()
+def localPropsFile = new File(rootDir, "local.properties")
+if (localPropsFile.exists()) {
+    localProps.load(new FileInputStream(localPropsFile))
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+        maven {
+            url = uri("https://maven.pkg.github.com/Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector")
+            credentials {
+                username = localProps.getProperty("gpr.user")
+                password = localProps.getProperty("gpr.token")
+            }
+        }
+    }
+}
+
+Eğer kotlin gradle ise
+(build gradle)
+    lintChecks("com.arda:compose-code-smell-detector:1.1.2")
+
+
+(settings gradle)
+val localProps = Properties()
+val localPropsFile = File(rootDir, "local.properties")
+if (localPropsFile.exists()) {
+    localProps.load(FileInputStream(localPropsFile))
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url = uri("https://maven.pkg.github.com/Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector")
+            credentials {
+                username = localProps.getProperty("gpr.user")
+                password = localProps.getProperty("gpr.token")
+            }
+        }
+    }
+}
+
+local properties
+gpr.user=Arda-Gokalp-Batmaz-AGB
+gpr.token=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
