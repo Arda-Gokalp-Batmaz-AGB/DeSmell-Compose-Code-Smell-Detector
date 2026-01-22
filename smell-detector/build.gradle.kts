@@ -60,7 +60,7 @@ val projectArtifactId = "compose-code-smell-detector"
 val projectVersion = "1.3.5"
 val projectName = "DeSmell - Compose Code Smell Detector"
 val projectDescription = "Static analysis tool for detecting presentation-layer code smells in Jetpack Compose applications"
-val projectUrl = "https://github.com/Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector"
+val projectUrl = "https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector"
 val projectLicense = "MIT"
 val projectLicenseUrl = "https://opensource.org/licenses/MIT"
 val developerName = "Arda Gokalp Batmaz"
@@ -122,8 +122,8 @@ publishing {
                 }
                 
                 scm {
-                    connection.set("scm:git:git://github.com/Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector.git")
-                    developerConnection.set("scm:git:ssh://github.com:Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector.git")
+                    connection.set("scm:git:git://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector.git")
+                    developerConnection.set("scm:git:ssh://github.com:Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector.git")
                     url.set(projectUrl)
                 }
             }
@@ -150,7 +150,7 @@ publishing {
         if (gprUser != null && gprToken != null) {
             maven {
                 name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector")
+                url = uri("https://maven.pkg.github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector")
                 
                 credentials {
                     username = gprUser

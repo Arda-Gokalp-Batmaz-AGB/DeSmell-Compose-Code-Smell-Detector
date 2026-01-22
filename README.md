@@ -1,10 +1,10 @@
 # DeSmell: Static Detection of Presentation-Layer Code Smells in Declarative Android Architectures
 
-[![Version](https://img.shields.io/badge/version-1.3.5-blue.svg)](https://github.com/Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector)
+[![Version](https://img.shields.io/badge/version-1.3.5-blue.svg)](https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector)
 [![Lint API](https://img.shields.io/badge/Lint%20API-31.5.0-green.svg)](https://developer.android.com/studio/write/lint)
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple.svg)](https://kotlinlang.org/)
 [![AGP](https://img.shields.io/badge/AGP-8.6.0-orange.svg)](https://developer.android.com/studio/releases/gradle-plugin)
-[![📘 Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://arda-gokalp-batmaz-agb.github.io/Kotlin-Code-Smell-Detector/)
+[![📘 Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://arda-gokalp-batmaz-agb.github.io/DeSmell-Compose-Code-Smell-Detector/)
 
 ## Introduction
 
@@ -21,7 +21,7 @@ The adoption of declarative UI frameworks like Jetpack Compose invalidates tradi
 
 DeSmell integrates seamlessly with Android Lint, providing real-time feedback during development and automated quality checks in continuous integration pipelines.
 
-> 📘 **📖 Smell Detection Catalog**: For comprehensive documentation with detailed explanations, code examples, and metrics for all 12 code smells, visit the [**DeSmell Smell Detection Catalog**](https://arda-gokalp-batmaz-agb.github.io/Kotlin-Code-Smell-Detector/) on GitHub Pages.
+> 📘 **📖 Smell Detection Catalog**: For comprehensive documentation with detailed explanations, code examples, and metrics for all 12 code smells, visit the [**DeSmell Smell Detection Catalog**](https://arda-gokalp-batmaz-agb.github.io/DeSmell-Compose-Code-Smell-Detector/) on GitHub Pages.
 
 ---
 
@@ -52,13 +52,17 @@ DeSmell integrates seamlessly with Android Lint, providing real-time feedback du
 
 DeSmell is available from multiple repositories:
 
-- **JitPack** (Recommended for quick setup) - `com.github.Arda-Gokalp-Batmaz-AGB:Kotlin-Code-Smell-Detector:1.3.5`
+- **JitPack** (Recommended for quick setup) - `com.github.Arda-Gokalp-Batmaz-AGB:DeSmell-Compose-Code-Smell-Detector:1.3.5`
 - **Maven Central** - `com.arda:compose-code-smell-detector:1.3.5`
 - **GitHub Packages** - `com.arda:compose-code-smell-detector:1.3.5`
 
 ### JitPack Integration (Easiest)
 
 JitPack automatically builds from GitHub releases. No additional setup needed!
+
+**JitPack Coordinate**: `com.github.Arda-Gokalp-Batmaz-AGB:DeSmell-Compose-Code-Smell-Detector:VERSION`
+
+> **Note**: JitPack coordinates are based on your GitHub username and repository name. If you prefer a shorter coordinate, consider using Maven Central instead (see below).
 
 #### Step 1: Add Repository
 
@@ -79,11 +83,14 @@ In your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    lintChecks("com.github.Arda-Gokalp-Batmaz-AGB:Kotlin-Code-Smell-Detector:1.3.5")
+    lintChecks("com.github.Arda-Gokalp-Batmaz-AGB:DeSmell-Compose-Code-Smell-Detector:1.3.5")
 }
 ```
 
-**Note**: Replace `1.3.5` with the latest release tag or commit hash (e.g., `1.3.5`, `main-SNAPSHOT`, or `abc123def`).
+**Version Options**:
+- Release tag: `1.3.5` (recommended)
+- Branch: `main-SNAPSHOT` (latest from main branch)
+- Commit hash: `abc123def` (specific commit)
 
 ### Maven Central Integration
 
@@ -484,7 +491,7 @@ The empirical results confirm that:
 For detailed methodology, theoretical foundations, and complete evaluation results, see:
 
 - **Results Folder**: [Results/](Results/) - Contains all evaluation tables, charts, and visualizations
-- **Research Repository**: [GitHub Repository](https://github.com/Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector)
+- **Research Repository**: [GitHub Repository](https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector)
 
 ---
 
@@ -790,7 +797,7 @@ If you use DeSmell in academic work, please cite:
 ```
 Gökalp Batmaz, A. (2024). DeSmell: Static Detection of Presentation-Layer Code Smells 
 in Declarative Android Architectures. Master's Thesis, Istanbul Technical University.
-GitHub Repository: https://github.com/Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector
+GitHub Repository: https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector
 ```
 
 ### Key Research Papers
@@ -843,8 +850,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Arda-Gokalp-Batmaz-AGB/Kotlin-Code-Smell-Detector/discussions)
+- **Issues**: [GitHub Issues](https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector/discussions)
 - **Contact**: See vendor information in `SmellIssueRegistry.kt`
 
 ---
