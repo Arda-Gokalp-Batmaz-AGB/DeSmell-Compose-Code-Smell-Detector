@@ -48,6 +48,43 @@ DeSmell integrates seamlessly with Android Lint, providing real-time feedback du
 
 **Latest Version**: `1.3.5`
 
+### Available Repositories
+
+DeSmell is available from multiple repositories:
+
+- **JitPack** (Recommended for quick setup) - `com.github.Arda-Gokalp-Batmaz-AGB:Kotlin-Code-Smell-Detector:1.3.5`
+- **Maven Central** - `com.arda:compose-code-smell-detector:1.3.5`
+- **GitHub Packages** - `com.arda:compose-code-smell-detector:1.3.5`
+
+### JitPack Integration (Easiest)
+
+JitPack automatically builds from GitHub releases. No additional setup needed!
+
+#### Step 1: Add Repository
+
+In your project-level `build.gradle.kts` or `settings.gradle.kts`:
+
+```kotlin
+repositories {
+    maven { url = uri("https://jitpack.io") }
+    mavenCentral()
+    google()
+    // ... other repositories
+}
+```
+
+#### Step 2: Add Dependency
+
+In your app module's `build.gradle.kts`:
+
+```kotlin
+dependencies {
+    lintChecks("com.github.Arda-Gokalp-Batmaz-AGB:Kotlin-Code-Smell-Detector:1.3.5")
+}
+```
+
+**Note**: Replace `1.3.5` with the latest release tag or commit hash (e.g., `1.3.5`, `main-SNAPSHOT`, or `abc123def`).
+
 ### Maven Central Integration
 
 DeSmell is available via Maven Central. Add the following dependency to your project:

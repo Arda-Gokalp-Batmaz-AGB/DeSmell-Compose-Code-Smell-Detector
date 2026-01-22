@@ -1,0 +1,7 @@
+jdk:
+  - openjdk17
+before_install:
+  - ./gradlew clean build -x test
+install:
+  - ./gradlew :smell-detector:publishToMavenLocal
+
