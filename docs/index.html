@@ -204,6 +204,9 @@
       font-size:14px;
       line-height:1.6;
       margin:8px 0;
+      white-space:pre-wrap;
+      word-wrap:break-word;
+      tab-size:4;
     }
     .code-block{
       margin:12px 0;
@@ -582,8 +585,7 @@
         <h3>Examples</h3>
         <div class="code-block">
           <span class="example-label">❌ Bad</span>
-          <div class="code bad-example">
-@Composable
+          <div class="code bad-example">@Composable
 fun MyScreen() {
     val padding = 16.dp  // ❌ Recreated on every recomposition
     val colors = listOf(Color.Red, Color.Blue)  // ❌ New list allocated each time
@@ -591,14 +593,12 @@ fun MyScreen() {
     Column(modifier = Modifier.padding(padding)) {
         // ...
     }
-}
-          </div>
+}</div>
         </div>
 
         <div class="code-block">
           <span class="example-label">✅ Good</span>
-          <div class="code good-example">
-// Option 1: Hoist to top level
+          <div class="code good-example">// Option 1: Hoist to top level
 private val SCREEN_PADDING = 16.dp
 private val SCREEN_COLORS = listOf(Color.Red, Color.Blue)
 
@@ -618,8 +618,7 @@ fun MyScreen() {
     Column(modifier = Modifier.padding(padding)) {
         // ...
     }
-}
-          </div>
+}</div>
         </div>
 
         <h3>Threshold</h3>
@@ -771,22 +770,19 @@ fun MyScreen() {
         <h3>Examples</h3>
         <div class="code-block">
           <span class="example-label">❌ Bad</span>
-          <div class="code bad-example">
-@Composable
+          <div class="code bad-example">@Composable
 fun MyScreen(viewModel: MyViewModel) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle()
     val loadingState = viewModel.loadingState.collectAsStateWithLifecycle()
     val errorState = viewModel.errorState.collectAsStateWithLifecycle()  // ❌ 3 flows
     
     // ...
-}
-          </div>
+}</div>
         </div>
 
         <div class="code-block">
           <span class="example-label">✅ Good</span>
-          <div class="code good-example">
-// Aggregate state in ViewModel
+          <div class="code good-example">// Aggregate state in ViewModel
 data class MyUiState(
     val content: String,
     val isLoading: Boolean,
@@ -798,8 +794,7 @@ fun MyScreen(viewModel: MyViewModel) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle()  // ✅ Single aggregated state
     
     // ...
-}
-          </div>
+}</div>
         </div>
 
         <h3>How to fix</h3>
@@ -827,8 +822,7 @@ fun MyScreen(viewModel: MyViewModel) {
         <h3>Flagged examples</h3>
         <div class="code-block">
           <span class="example-label">❌ Bad</span>
-          <div class="code bad-example">
-@Composable
+          <div class="code bad-example">@Composable
 fun MyScreen() {
     val count = remember { mutableStateOf(0) }
     
@@ -840,8 +834,7 @@ fun MyScreen() {
         0 -> Text("Zero")
         else -> Text("Non-zero")
     }
-}
-          </div>
+}</div>
         </div>
 
         <h3>Allowed patterns</h3>
@@ -853,11 +846,12 @@ fun MyScreen() {
 
         <div class="code-block">
           <span class="example-label">✅ Good</span>
-          <div class="code good-example">
-@Composable
+          <div class="code good-example">@Composable
 fun MyScreen() {
     val count = remember { mutableStateOf(0) }
-    val isHighCount = remember { derivedStateOf { count.value > 3 } }  // ✅ Derived state
+    val isHighCount = remember { 
+        derivedStateOf { count.value > 3 } 
+    }  // ✅ Derived state
     
     if (isHighCount.value) {
         Text("High count")
@@ -868,8 +862,7 @@ fun MyScreen() {
     if (isEnabled.value) {  // ✅ OK for boolean state
         // ...
     }
-}
-          </div>
+}</div>
         </div>
 
         <h3>Threshold</h3>
@@ -894,8 +887,7 @@ fun MyScreen() {
         <h3>Flagged patterns</h3>
         <div class="code-block">
           <span class="example-label">❌ Bad</span>
-          <div class="code bad-example">
-@Composable
+          <div class="code bad-example">@Composable
 fun MyScreen() {
     val count = remember { mutableStateOf(0) }
     
@@ -905,8 +897,7 @@ fun MyScreen() {
     localState = 10  // ❌ Mutation during composition
     
     Text("Count: $count")
-}
-          </div>
+}</div>
         </div>
 
         <h3>Allowed patterns</h3>
@@ -918,8 +909,7 @@ fun MyScreen() {
 
         <div class="code-block">
           <span class="example-label">✅ Good</span>
-          <div class="code good-example">
-@Composable
+          <div class="code good-example">@Composable
 fun MyScreen() {
     val count = remember { mutableStateOf(0) }
     
@@ -932,8 +922,7 @@ fun MyScreen() {
     }
     
     Text("Count: ${count.value}")
-}
-          </div>
+}</div>
         </div>
 
         <h3>Threshold</h3>
@@ -975,22 +964,19 @@ fun MyScreen() {
         <h3>Examples</h3>
         <div class="code-block">
           <span class="example-label">❌ Bad</span>
-          <div class="code bad-example">
-data class User(val name: String, val age: Int)  // Not Parcelable or Serializable
+          <div class="code bad-example">data class User(val name: String, val age: Int)  // Not Parcelable or Serializable
 
 @Composable
 fun MyScreen() {
     val user = rememberSaveable { User("John", 30) }  // ❌ Non-savable type
     
     // State will be lost on configuration change!
-}
-          </div>
+}</div>
         </div>
 
         <div class="code-block">
           <span class="example-label">✅ Good</span>
-          <div class="code good-example">
-// Option 1: Make it Parcelable
+          <div class="code good-example">// Option 1: Make it Parcelable
 @Parcelize
 data class User(val name: String, val age: Int) : Parcelable
 
@@ -1005,11 +991,14 @@ fun MyScreen() {
     val user = rememberSaveable(
         saver = Saver(
             save = { "${it.name}|${it.age}" },
-            restore = { it.split("|").let { User(it[0], it[1].toInt()) } }
+            restore = { 
+                it.split("|").let { parts -> 
+                    User(parts[0], parts[1].toInt()) 
+                } 
+            }
         )
     ) { User("John", 30) }  // ✅ Custom saver provided
-}
-          </div>
+}</div>
         </div>
 
         <h3>Threshold</h3>
@@ -1043,21 +1032,18 @@ fun MyScreen() {
         <h3>Examples</h3>
         <div class="code-block">
           <span class="example-label">❌ Bad</span>
-          <div class="code bad-example">
-@Composable
+          <div class="code bad-example">@Composable
 fun MyScreen() {
     val constantValue = rememberUpdatedState(42)  // ❌ Constant value
     val constantList = rememberUpdatedState(listOf(1, 2, 3))  // ❌ Immutable list
     
     // Use regular remember or hoist instead
-}
-          </div>
+}</div>
         </div>
 
         <div class="code-block">
           <span class="example-label">✅ Good</span>
-          <div class="code good-example">
-@Composable
+          <div class="code good-example">@Composable
 fun MyScreen(onClick: () -> Unit) {
     // ✅ Use rememberUpdatedState for changing callbacks
     val currentOnClick = rememberUpdatedState(onClick)
@@ -1072,8 +1058,7 @@ fun MyScreen(onClick: () -> Unit) {
     
     // ✅ Or hoist to top level
     // private val CONSTANT_VALUE = 42
-}
-          </div>
+}</div>
         </div>
 
         <h3>Exclusions</h3>
@@ -1116,8 +1101,7 @@ fun MyScreen(onClick: () -> Unit) {
         <h3>Examples</h3>
         <div class="code-block">
           <span class="example-label">❌ Bad</span>
-          <div class="code bad-example">
-@Composable
+          <div class="code bad-example">@Composable
 fun ParentScreen(userId: String) {
     key(userId) {  // Parent key
         LaunchedEffect(userId) {  // ❌ Redundant - already keyed by parent
@@ -1133,14 +1117,12 @@ fun ChildComposable(userId: String) {
     key(userId) {  // ❌ Redundant if parent already keyed by userId
         // ...
     }
-}
-          </div>
+}</div>
         </div>
 
         <div class="code-block">
           <span class="example-label">✅ Good</span>
-          <div class="code good-example">
-@Composable
+          <div class="code good-example">@Composable
 fun ParentScreen(userId: String) {
     key(userId) {  // Parent key
         LaunchedEffect(Unit) {  // ✅ No redundant key
@@ -1155,8 +1137,7 @@ fun ParentScreen(userId: String) {
 fun ChildComposable(userId: String) {
     // ✅ No key needed - already scoped by parent
     Text("User: $userId")
-}
-          </div>
+}</div>
         </div>
 
         <h3>Threshold</h3>
@@ -1228,8 +1209,7 @@ fun ChildComposable(userId: String) {
         <h3>Examples</h3>
         <div class="code-block">
           <span class="example-label">❌ Bad</span>
-          <div class="code bad-example">
-@Composable
+          <div class="code bad-example">@Composable
 fun MyScreen(viewModel: MyViewModel) {
     LaunchedEffect(Unit) {
         // ❌ Complex business logic in effect
@@ -1251,14 +1231,12 @@ fun MyScreen(viewModel: MyViewModel) {
             }
         }
     }
-}
-          </div>
+}</div>
         </div>
 
         <div class="code-block">
           <span class="example-label">✅ Good</span>
-          <div class="code good-example">
-@Composable
+          <div class="code good-example">@Composable
 fun MyScreen(viewModel: MyViewModel) {
     // ✅ Move complex logic to ViewModel
     LaunchedEffect(Unit) {
@@ -1275,8 +1253,7 @@ class MyViewModel {
             // ...
         }
     }
-}
-          </div>
+}</div>
         </div>
 
         <h3>Reporting scope</h3>
@@ -1306,30 +1283,27 @@ class MyViewModel {
         <h3>Examples</h3>
         <div class="code-block">
           <span class="example-label">❌ Bad</span>
-          <div class="code bad-example">
-@Composable
+          <div class="code bad-example">@Composable
 fun ComplexCard(
-    header: @Composable () -> Unit,           // Slot 1
-    title: @Composable () -> Unit,             // Slot 2
-    subtitle: @Composable () -> Unit,          // Slot 3
-    content: @Composable () -> Unit,           // Slot 4 ❌
-    footer: @Composable () -> Unit,           // Slot 5 ❌
-    actions: @Composable RowScope.() -> Unit   // Slot 6 ❌
+    header: @Composable () -> Unit,        // Slot 1
+    title: @Composable () -> Unit,         // Slot 2
+    subtitle: @Composable () -> Unit,      // Slot 3
+    content: @Composable () -> Unit,       // Slot 4 ❌
+    footer: @Composable () -> Unit,        // Slot 5 ❌
+    actions: @Composable RowScope.() -> Unit // Slot 6 ❌
 ) {
     // Too many slots - hard to remember and use
-}
-          </div>
+}</div>
         </div>
 
         <div class="code-block">
           <span class="example-label">✅ Good</span>
-          <div class="code good-example">
-// Option 1: Reduce slots by grouping
+          <div class="code good-example">// Option 1: Reduce slots by grouping
 @Composable
 fun Card(
-    header: @Composable () -> Unit,      // Slot 1
-    content: @Composable () -> Unit,     // Slot 2
-    footer: @Composable () -> Unit        // Slot 3 ✅
+    header: @Composable () -> Unit,  // Slot 1
+    content: @Composable () -> Unit,  // Slot 2
+    footer: @Composable () -> Unit    // Slot 3 ✅
 ) {
     // ...
 }
@@ -1342,13 +1316,12 @@ data class CardHeader(
 
 @Composable
 fun Card(
-    header: CardHeader,                  // Not a slot
-    content: @Composable () -> Unit,     // Slot 1
-    actions: @Composable () -> Unit       // Slot 2 ✅
+    header: CardHeader,                // Not a slot
+    content: @Composable () -> Unit,   // Slot 1
+    actions: @Composable () -> Unit     // Slot 2 ✅
 ) {
     // ...
-}
-          </div>
+}</div>
         </div>
 
         <h3>Threshold</h3>
