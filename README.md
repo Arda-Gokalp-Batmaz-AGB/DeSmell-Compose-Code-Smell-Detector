@@ -452,7 +452,7 @@ For detailed methodology, theoretical foundations, and complete evaluation resul
 
 DeSmell implements 12 specialized detectors for identifying presentation-layer code smells in Jetpack Compose applications:
 
-> 📖 **Detailed Documentation**: For comprehensive information about each smell, including detection rules, metrics, formulas, thresholds, and practical code examples, see the [**DeSmell Smell Detection Catalog**](docs/desmell_smell_catalog.html). The catalog provides developer-friendly explanations, good/bad code examples, and actionable guidance for fixing each detected smell.
+> 📖 **Detailed Documentation**: For comprehensive information about each smell, including detection rules, metrics, formulas, thresholds, and practical code examples, see the [**DeSmell Smell Detection Catalog**](docs/DeSmell_Smell_Catalog.html). The catalog provides developer-friendly explanations, good/bad code examples, and actionable guidance for fixing each detected smell.
 
 ### Complete Detector Reference
 
