@@ -4,6 +4,7 @@
 [![Lint API](https://img.shields.io/badge/Lint%20API-31.5.0-green.svg)](https://developer.android.com/studio/write/lint)
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple.svg)](https://kotlinlang.org/)
 [![AGP](https://img.shields.io/badge/AGP-8.6.0-orange.svg)](https://developer.android.com/studio/releases/gradle-plugin)
+[![📘 Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://arda-gokalp-batmaz-agb.github.io/Kotlin-Code-Smell-Detector/)
 
 ## Introduction
 
@@ -19,6 +20,8 @@ The adoption of declarative UI frameworks like Jetpack Compose invalidates tradi
 - **Complementing existing tools** by detecting unique maintainability flaws distinct from standard linters
 
 DeSmell integrates seamlessly with Android Lint, providing real-time feedback during development and automated quality checks in continuous integration pipelines.
+
+> 📘 **📖 Smell Detection Catalog**: For comprehensive documentation with detailed explanations, code examples, and metrics for all 12 code smells, visit the [**DeSmell Smell Detection Catalog**](https://arda-gokalp-batmaz-agb.github.io/Kotlin-Code-Smell-Detector/) on GitHub Pages.
 
 ---
 
