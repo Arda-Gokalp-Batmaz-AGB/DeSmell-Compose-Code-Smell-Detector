@@ -795,7 +795,7 @@ The following open-source projects were used in the empirical evaluation:
 If you use DeSmell in academic work, please cite:
 
 ```
-Gökalp Batmaz, A. (2024). DeSmell: Static Detection of Presentation-Layer Code Smells 
+Gökalp Batmaz, A. (2026). DeSmell: Static Detection of Presentation-Layer Code Smells 
 in Declarative Android Architectures. Master's Thesis, Istanbul Technical University.
 GitHub Repository: https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector
 ```
