@@ -557,30 +557,6 @@ Ratio of side effects to UI nodes in a composable:
 
 ### Threshold Configuration
 
-Many detectors support configurable thresholds. Configure them in `lint.xml`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<lint>
-    <!-- Composable Function Complexity -->
-    <issue id="ComposableFunctionComplexity">
-        <option name="cfcThreshold" value="25" />
-    </issue>
-    
-    <!-- Side Effect Density -->
-    <issue id="HighSideEffectDensity">
-        <option name="sedThreshold" value="0.3" />
-    </issue>
-    
-    <!-- Slot Count -->
-    <issue id="SlotCountInComposable">
-        <option name="maxSlots" value="6" />
-    </issue>
-</lint>
-```
-
-Place `lint.xml` in your app module root: `app/lint.xml`
-
 ### Disable Specific Checks
 
 **In `build.gradle.kts`:**
