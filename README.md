@@ -477,6 +477,29 @@ For detailed visualizations and charts, refer to the [Results](Results/) folder:
 - **[COMPOSE-FOCUSED BASELINE FINDINGS PER PROJECT](Results/COMPOSE-FOCUSED%20BASELINE%20FINDINGS%20PER%20PROJECT.png)**: Baseline tool findings across projects
 - **[TOP COMPOSE-FOCUSED BASELINE ISSUES PER PROJECT FOR SLACK COMPOSE LINTS](Results/TOP%20COMPOSE-FOCUSED%20BASELINE%20ISSUES%20PER%20PROJECT%20FOR%20SLACK%20COMPOSE%20LINTS.png)**: Most common issues detected by Slack Compose Lints
 
+### Validation Methodology
+
+The metrics, thresholds, and detection rules implemented in DeSmell have been validated through a comprehensive developer feedback process. This validation ensures that the tool's detections align with real-world developer perceptions of code quality issues in Jetpack Compose codebases.
+
+#### Developer Feedback Validation
+
+The validation process involved:
+
+1. **Developer Surveys**: Structured surveys were conducted with developers using the tool to evaluate whether detected code patterns represent actual maintainability, modifiability, readability, testability, recomposition/performance, and lifecycle/state management problems.
+
+2. **Threshold Calibration**: Default thresholds for metrics such as Composable Function Complexity (CFC), Side Effect Density (SED), Logic in UI Density (LIU), and Slot Count were refined based on developer feedback to balance sensitivity and practical utility.
+
+3. **Pattern Validation**: Each code smell pattern was evaluated by developers to confirm that detections correspond to genuine architectural and maintainability concerns rather than false positives.
+
+#### Survey Links
+
+Developers can participate in the ongoing validation process by completing the following surveys:
+
+- **English Survey**: [Jetpack Compose UI Codes Evaluation Survey](https://forms.gle/qvK3PByDTMNQevCNA)
+- **Turkish Survey**: [Jetpack Compose UI Kodları Değerlendirme Anketi](https://forms.gle/ZrKVAi5C8Pjj58iZA)
+
+These surveys evaluate Jetpack Compose UI code snippets to assess whether certain code patterns cause problems in terms of maintainability, modifiability, readability, testability, recomposition/performance, and lifecycle/state management. All responses are used anonymously for academic research purposes.
+
 ### Empirical Validation
 
 The empirical results confirm that:
@@ -485,6 +508,7 @@ The empirical results confirm that:
 2. **Metric-based analysis is necessary** for modern declarative architectures, as rule-based linters miss architectural degradation patterns
 3. **Detection density varies** across projects (0.00 to 11.45 detections per 1k LOC), indicating project-specific quality characteristics
 4. **Architectural smells are prevalent** in real-world projects, with Multiple Flow Collections (14 detections) and Constants in Composables (12 detections) being most common
+5. **Developer-validated thresholds** ensure that detections align with practical developer concerns about code quality
 
 ### Academic Reference
 
@@ -520,10 +544,12 @@ DeSmell implements 12 specialized detectors for identifying presentation-layer c
 
 ### Metrics Explained
 
+All metrics and their thresholds have been validated through developer feedback surveys to ensure they align with real-world code quality concerns. The default thresholds represent a balance between sensitivity and practical utility, calibrated based on developer evaluations of code patterns.
+
 #### Logic in UI Density (LIU)
 Measures control-flow density in composables:
 - **Formula**: `LIU = (CF_render + 0.5 × CF_behavior) / statements`
-- **Threshold**: 2-6 control flow constructs per statement count
+- **Threshold**: 2-6 control flow constructs per statement count (validated via developer surveys)
 - **Purpose**: Identifies when UI layer accumulates procedural orchestration logic
 
 #### Composable Function Complexity (CFC)
@@ -535,7 +561,7 @@ Measures structural and logical complexity by combining:
 - Parameter count
 - Statement count
 
-**Threshold**: Default 25 (configurable)
+**Threshold**: Default 25 (configurable, validated via developer feedback)
 
 #### Side-Effect Complexity (SEC)
 Measures complexity within side-effect blocks:
@@ -543,12 +569,12 @@ Measures complexity within side-effect blocks:
 - Nested launched scopes/effects
 - Statement count
 
-**Threshold**: Default 10 (configurable)
+**Threshold**: Default 10 (configurable, validated via developer feedback)
 
 #### Side Effect Density (SED)
 Ratio of side effects to UI nodes in a composable:
 - **Formula**: `SED = sideEffectCount / uiNodeCount`
-- **Threshold**: Default 0.3 (30%, configurable)
+- **Threshold**: Default 0.3 (30%, configurable, validated via developer feedback)
 - **Purpose**: Identifies effect-heavy composables that take on controller responsibilities
 
 ---
@@ -556,6 +582,30 @@ Ratio of side effects to UI nodes in a composable:
 ## Configuration
 
 ### Threshold Configuration
+
+Many detectors support configurable thresholds. Configure them in `lint.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Composable Function Complexity -->
+    <issue id="ComposableFunctionComplexity">
+        <option name="cfcThreshold" value="25" />
+    </issue>
+    
+    <!-- Side Effect Density -->
+    <issue id="HighSideEffectDensity">
+        <option name="sedThreshold" value="0.3" />
+    </issue>
+    
+    <!-- Slot Count -->
+    <issue id="SlotCountInComposable">
+        <option name="maxSlots" value="6" />
+    </issue>
+</lint>
+```
+
+Place `lint.xml` in your app module root: `app/lint.xml`
 
 ### Disable Specific Checks
 
@@ -771,7 +821,7 @@ The following open-source projects were used in the empirical evaluation:
 If you use DeSmell in academic work, please cite:
 
 ```
-Gökalp Batmaz, A. (2026). DeSmell: Static Detection of Presentation-Layer Code Smells 
+Gökalp Batmaz, A. (2024). DeSmell: Static Detection of Presentation-Layer Code Smells 
 in Declarative Android Architectures. Master's Thesis, Istanbul Technical University.
 GitHub Repository: https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector
 ```
