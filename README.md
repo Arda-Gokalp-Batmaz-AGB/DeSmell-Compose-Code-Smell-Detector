@@ -486,6 +486,17 @@ The empirical results confirm that:
 3. **Detection density varies** across projects (0.00 to 11.45 detections per 1k LOC), indicating project-specific quality characteristics
 4. **Architectural smells are prevalent** in real-world projects, with Multiple Flow Collections (14 detections) and Constants in Composables (12 detections) being most common
 
+### Developer Feedback Validation
+
+The tool's metrics, thresholds, and detection rules have been validated through comprehensive developer feedback collected via surveys. These surveys evaluate code patterns in terms of **maintainability**, **modifiability**, **readability**, **testability**, **recomposition/performance**, and **lifecycle/state** management. The feedback from practicing developers using the tool has been instrumental in refining the detection thresholds and ensuring the practical relevance of the identified code smells.
+
+**Participate in the validation surveys:**
+
+- **English Survey**: [Jetpack Compose UI Codes Evaluation Survey](https://forms.gle/qvK3PByDTMNQevCNA)
+- **Turkish Survey**: [Jetpack Compose UI Kodları Değerlendirme Anketi](https://forms.gle/ZrKVAi5C8Pjj58iZA)
+
+The surveys are part of ongoing academic research and help improve the accuracy and relevance of DeSmell's detection capabilities.
+
 ### Academic Reference
 
 For detailed methodology, theoretical foundations, and complete evaluation results, see:
@@ -557,7 +568,7 @@ Ratio of side effects to UI nodes in a composable:
 
 ### Threshold Configuration
 
-Many detectors support configurable thresholds. Configure them in `lint.xml`:
+Many detectors support configurable thresholds. The default threshold values have been validated through empirical evaluation and developer feedback surveys (see [Developer Feedback Validation](#developer-feedback-validation)). Configure them in `lint.xml`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
