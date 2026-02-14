@@ -10,12 +10,12 @@ import com.android.tools.lint.detector.api.SourceCodeScanner
 import com.android.tools.lint.detector.api.Context
 import com.arda.smell_detector.helpers.ComposableFunctionDetector
 import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
@@ -77,12 +77,6 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
             "kotlinx.coroutines.flow.StateFlow", "kotlinx.coroutines.flow.MutableStateFlow",
             "kotlinx.coroutines.flow.Flow", "androidx.lifecycle.LiveData",
         )
-        private val CONSUMPTION_METHODS = setOf(
-            "value", "collect", "collectAsState", "collectAsStateWithLifecycle", "observeAsState",
-        )
-        private val TRANSFORMATION_FUNCTIONS = setOf(
-            "derivedStateOf", "map", "filter", "flatMap", "combine", "zip",
-        )
         private const val MUTABLE_STATE_OF = "mutableStateOf"
     }
 
@@ -106,6 +100,8 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         val reactivePassThroughIndices: Set<Int>,
         /** local reactive var name -> KtProperty PSI element (for creation-point reporting) */
         val localReactiveVarProperties: Map<String, KtProperty>,
+        /** Parameter names that are consumed locally (used beyond just being a function argument) */
+        val consumedParams: Set<String>,
     )
 
     private var collected: MutableList<CollectedComposable>? = null
@@ -122,7 +118,18 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
     ) {
         savedContext = context
 
-        // 1) Analyze reactive-type params (State<T>, Flow<T>) — do NOT report yet, collect for chain analysis
+        val name = method.name
+        val paramNames = method.uastParameters.map { it.name ?: "" }
+
+        // 1) Compute consumed params: any param used beyond being a direct function argument
+        val consumedParams = mutableSetOf<String>()
+        for (pName in paramNames) {
+            if (pName.isNotEmpty() && isParameterConsumedLocally(function, pName)) {
+                consumedParams.add(pName)
+            }
+        }
+
+        // 2) Analyze reactive-type params (State<T>, Flow<T>) — do NOT report yet, collect for chain analysis
         val reactiveParams = findReactiveParameters(method)
         val reactiveParamTypes = mutableMapOf<Int, String>()
         val reactivePassThroughIndices = mutableSetOf<Int>()
@@ -130,16 +137,14 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
             val paramIdx = method.uastParameters.indexOfFirst { it.name == paramName }
             if (paramIdx < 0) continue
             reactiveParamTypes[paramIdx] = paramType
-            val consumedLocally = isParameterConsumedLocally(function, paramName)
+            val consumedLocally = paramName in consumedParams
             val childCalls = findChildComposableCalls(function, paramName)
             if (!consumedLocally && childCalls.size == 1) {
                 reactivePassThroughIndices.add(paramIdx)
             }
         }
 
-        // 2) Collect info for file-level analysis (both reactive-type and derived, processed in afterCheckFile)
-        val name = method.name
-        val paramNames = method.uastParameters.map { it.name ?: "" }
+        // 3) Collect info for file-level analysis (both reactive-type and derived, processed in afterCheckFile)
         val localReactiveVarProperties = findLocalReactiveVarProperties(function)
         val localReactiveVars = localReactiveVarProperties.keys
         val callSites = findCallSites(function)
@@ -147,7 +152,8 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
             name, paramNames, localReactiveVars, callSites,
             method.uastParameters.toList(),
             reactiveParamTypes, reactivePassThroughIndices,
-            localReactiveVarProperties
+            localReactiveVarProperties,
+            consumedParams
         ))
     }
 
@@ -397,16 +403,20 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
     }
 
     /**
-     * Check if a parameter is pass-through: appears exactly once in call sites as an argument
-     * to a single composable, and nowhere else.
+     * Check if a parameter is pass-through: not consumed locally (used beyond being a function
+     * argument), appears exactly once in call sites as an argument to a single composable,
+     * and nowhere else.
      */
     private fun isPassThrough(info: CollectedComposable, paramName: String, composableNames: Set<String>): Boolean {
+        // If the param is consumed locally (used beyond just being a function argument), not pass-through
+        if (paramName in info.consumedParams) return false
+
         val composableArgUses = info.callSites.count { (calleeName, _, argName) ->
             argName == paramName && calleeName in composableNames
         }
         if (composableArgUses != 1) return false
 
-        // Also check there's no OTHER use of the param (e.g. in non-composable calls, expressions, etc.)
+        // Also check there's no OTHER use of the param (e.g. in non-composable calls)
         val totalArgUses = info.callSites.count { it.third == paramName }
         return totalArgUses == 1
     }
@@ -427,30 +437,36 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         return list
     }
 
+    /**
+     * A parameter is considered "consumed locally" if it is used ANYWHERE in the function
+     * other than being passed as a direct argument to another function call.
+     *
+     * Examples of consumption: state.toString(), state.value, state.let { ... },
+     * val x = state, val v by state, state + 1, etc.
+     *
+     * NOT consumption: Child(state), someFunction(state) — just forwarding the reference.
+     */
     private fun isParameterConsumedLocally(function: KtFunction, paramName: String): Boolean {
-        for (dot in function.findChildrenByClass<KtDotQualifiedExpression>()) {
-            val receiver = dot.receiverExpression.unwrapParens()
-            if (receiver is KtNameReferenceExpression && receiver.getReferencedName() == paramName) {
-                val selector = dot.selectorExpression
-                if (selector is KtNameReferenceExpression && selector.getReferencedName() in CONSUMPTION_METHODS) return true
-                if (selector is KtCallExpression && selector.calleeExpression?.text in CONSUMPTION_METHODS) return true
-            }
-        }
-        for (call in function.findChildrenByClass<KtCallExpression>()) {
-            if (call.calleeExpression?.text in TRANSFORMATION_FUNCTIONS && callMentionsParameter(call, paramName)) return true
-        }
-        for (property in function.findChildrenByClass<KtProperty>()) {
-            if (property.delegate?.expression?.let { delegateMentionsParameter(it, paramName) } == true) return true
+        for (ref in function.findChildrenByClass<KtNameReferenceExpression>()) {
+            if (ref.getReferencedName() != paramName) continue
+            // If this reference is just a direct argument to a function call, skip it
+            if (isDirectFunctionArgument(ref)) continue
+            // Any other usage = consumed
+            return true
         }
         return false
     }
 
-    private fun callMentionsParameter(call: KtCallExpression, paramName: String): Boolean =
-        call.findChildrenByClass<KtNameReferenceExpression>().any { it.getReferencedName() == paramName }
-
-    private fun delegateMentionsParameter(expr: KtExpression?, paramName: String): Boolean {
-        expr ?: return false
-        return expr.findChildrenByClass<KtNameReferenceExpression>().any { it.getReferencedName() == paramName }
+    /**
+     * Check if a name reference is used only as a direct argument to a function call,
+     * i.e. it appears (possibly wrapped in parentheses) as a KtValueArgument.
+     */
+    private fun isDirectFunctionArgument(ref: KtNameReferenceExpression): Boolean {
+        var node = ref.parent ?: return false
+        while (node is KtParenthesizedExpression) {
+            node = node.parent ?: return false
+        }
+        return node is KtValueArgument
     }
 
     private fun findChildComposableCalls(function: KtFunction, paramName: String): List<KtCallExpression> {

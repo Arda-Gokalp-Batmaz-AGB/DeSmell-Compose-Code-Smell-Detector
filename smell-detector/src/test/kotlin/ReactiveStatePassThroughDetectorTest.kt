@@ -498,4 +498,219 @@ class ReactiveStatePassThroughDetectorTest {
 
         lintCheck(code).expectClean()
     }
+
+    // ─── Broader consumption tests: any usage other than passing as function argument = consumed ───
+
+    @Test
+    fun `state consumed via toString in multi-layer chain is not flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(state: State<UiState>) {
+                LayerB(state)  // Would be pass-through, but LayerB consumes
+            }
+
+            @Composable
+            fun LayerB(state: State<UiState>) {
+                val s = state.toString()  // Consumed via method call — breaks chain
+                LayerC(state)
+            }
+
+            @Composable
+            fun LayerC(state: State<UiState>) {
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerB consumes state (toString), so the chain is broken: LayerA → LayerB (consumed)
+        // Chain length = 1, not flagged
+        lintCheck(code).expectClean()
+    }
+
+    @Test
+    fun `derived param consumed via method call in chain is not flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+
+            @Composable
+            fun T1() {
+                var den by remember { mutableStateOf(0) }
+                T2(den)
+            }
+
+            @Composable
+            fun T2(test: Int) {
+                val s = test.toString()  // Consumed via method call — breaks chain
+                T3(test)
+            }
+
+            @Composable
+            fun T3(test: Int) {
+                T4(test)
+            }
+
+            @Composable
+            fun T4(test: Int) {
+            }
+            """
+        ).indented()
+
+        // T2 consumes test (toString), so the chain from T2 is broken
+        // Only T3 remains as pass-through (chain of 1), not flagged
+        lintCheck(code).expectClean()
+    }
+
+    @Test
+    fun `state consumed via let block in multi-layer chain is not flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(state: State<UiState>) {
+                LayerB(state)
+            }
+
+            @Composable
+            fun LayerB(state: State<UiState>) {
+                state.let { println(it) }  // Consumed via let (dot-qualified + lambda)
+                LayerC(state)
+            }
+
+            @Composable
+            fun LayerC(state: State<UiState>) {
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            fun println(x: Any?) {}
+            """
+        ).indented()
+
+        // LayerB consumes state via .let { }, breaking the chain
+        lintCheck(code).expectClean()
+    }
+
+    @Test
+    fun `chain still detected when consumption only at the end`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+
+            @Composable
+            fun T1() {
+                var den by remember { mutableStateOf(0) }
+                T2(den)
+            }
+
+            @Composable
+            fun T2(test: Int) {
+                T3(test)  // Pass-through
+            }
+
+            @Composable
+            fun T3(test: Int) {
+                T4(test)  // Pass-through
+            }
+
+            @Composable
+            fun T4(test: Int) {
+                val s = test.toString()  // Consumed here at the end — not pass-through
+            }
+            """
+        ).indented()
+
+        // T2 and T3 are pass-throughs (chain of 2), T4 consumes
+        // T2 and T3 should be flagged
+        lintCheck(code)
+            .expectWarningCount(2)
+            .expectContains("parameter 'test'")
+            .expectContains("in function 'T2'")
+            .expectContains("in function 'T3'")
+    }
+
+    @Test
+    fun `state consumed via hashCode in chain is not flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(state: State<UiState>) {
+                LayerB(state)
+            }
+
+            @Composable
+            fun LayerB(state: State<UiState>) {
+                val h = state.hashCode()  // Consumed via method call
+                LayerC(state)
+            }
+
+            @Composable
+            fun LayerC(state: State<UiState>) {
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerB consumes state via hashCode(), breaking the chain
+        lintCheck(code).expectClean()
+    }
+
+    @Test
+    fun `derived param used in string interpolation is consumed`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+
+            @Composable
+            fun T1() {
+                var den by remember { mutableStateOf(0) }
+                T2(den)
+            }
+
+            @Composable
+            fun T2(test: Int) {
+                T3(test)  // Pass-through
+            }
+
+            @Composable
+            fun T3(test: Int) {
+                val label = "${'$'}test items"  // Consumed — used in string template
+                T4(test)
+            }
+
+            @Composable
+            fun T4(test: Int) {
+            }
+            """
+        ).indented()
+
+        // T2 → T3: T3 consumes test (string template), so T3 is NOT a pass-through
+        // Only T2 remains as pass-through (chain of 1), not flagged
+        lintCheck(code).expectClean()
+    }
 }
