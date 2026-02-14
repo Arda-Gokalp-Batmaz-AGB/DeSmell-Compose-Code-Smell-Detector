@@ -41,6 +41,7 @@ val COMPOSITION_LOCAL_STUBS = LintDetectorTest.kotlin(
 
     class MutableState<T>(var value: T)
     fun <T> mutableStateOf(value: T): MutableState<T> = MutableState(value)
+    fun <T> mutableStateListOf(vararg elements: T): MutableList<T> = elements.toMutableList()
     fun <T> remember(calculation: @Composable () -> T): T = calculation()
     operator fun <T> MutableState<T>.getValue(thisObj: Any?, property: kotlin.reflect.KProperty<*>): T = value
     operator fun <T> MutableState<T>.setValue(thisObj: Any?, property: kotlin.reflect.KProperty<*>, newValue: T) {
@@ -88,6 +89,8 @@ val FLOW_AND_COLLECT_STUBS = LintDetectorTest.kotlin(
     package kotlinx.coroutines.flow
     
     interface Flow<out T>
+    interface StateFlow<out T> : Flow<T>
+    interface MutableStateFlow<T> : StateFlow<T>
     """
 ).indented()
 
