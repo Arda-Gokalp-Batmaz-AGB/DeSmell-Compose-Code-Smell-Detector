@@ -11,6 +11,7 @@ import com.arda.smell_detector.rules.MultipleFlowCollectionsPerComposableIssue
 import com.arda.smell_detector.rules.MutableStateInConditionIssue
 import com.arda.smell_detector.rules.MutableStateMutationInComposableIssue
 import com.arda.smell_detector.rules.NonSavableRememberSaveableIssue
+import com.arda.smell_detector.rules.ReactiveStatePassThroughIssue
 import com.arda.smell_detector.rules.RememberUpdatedStateWithConstantIssue
 import com.arda.smell_detector.rules.ReusedKeyInNestedScopeIssue
 import com.arda.smell_detector.rules.SideEffectComplexityIssue
@@ -28,6 +29,7 @@ class SmellIssueRegistry : IssueRegistry() {
         RememberUpdatedStateWithConstantIssue.ISSUE,
         NonSavableRememberSaveableIssue.ISSUE,
         MultipleFlowCollectionsPerComposableIssue.ISSUE,
+        ReactiveStatePassThroughIssue.ISSUE,
         SideEffectComplexityIssue.ISSUE,
         ComposableFunctionComplexityIssue.ISSUE,
         HighSideEffectDensityIssue.ISSUE
