@@ -20,14 +20,16 @@ import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import slack.lint.compose.util.findChildrenByClass
-import slack.lint.compose.util.isComposableFunction
 
 /**
  * Reactive State Pass-Through Issue
  *
  * Flags composables that receive reactive state (State<T>, StateFlow<T>, Flow<T>) or values
  * derived from local reactive state (e.g. Int/String from `var x by remember { mutableStateOf(0) }`)
- * as parameters but do not consume or transform them, only passing unchanged to exactly one child.
+ * as parameters but do not consume or transform them, only passing unchanged to a child.
+ *
+ * Only reports when the same parameter is passed through at least two consecutive composables
+ * without being consumed (chain of >= 2 pass-throughs).
  */
 object ReactiveStatePassThroughIssue {
 
@@ -35,10 +37,11 @@ object ReactiveStatePassThroughIssue {
     private const val DESCRIPTION = "Reactive state passed through composable without being used"
     private val EXPLANATION = """
         This composable receives reactive state (or a value from reactive state) as a parameter
-        but does not consume, transform, or share it—only passing it unchanged to a single child composable.
+        but does not consume, transform, or share it—only passing it unchanged through at least two
+        consecutive composable layers.
         
-        Passing reactive objects or state-derived values through intermediate composables without use
-        increases recomposition scope and violates proper state ownership principles.
+        Passing reactive objects or state-derived values through multiple intermediate composables
+        without use increases recomposition scope and violates proper state ownership principles.
         
         Consider: move state collection closer to usage, pass immutable snapshot (.value), or derive specific state.
     """.trimIndent()
@@ -62,7 +65,8 @@ object ReactiveStatePassThroughIssue {
 }
 
 /**
- * Detects reactive state (or state-derived value) parameters that are passed through without being consumed.
+ * Detects reactive state (or state-derived value) parameters that are passed through
+ * at least two consecutive composables without being consumed (chain >= 2).
  */
 class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCodeScanner {
 
@@ -96,6 +100,10 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         val callSites: List<Triple<String, Int, String?>>,
         /** UMethod parameters for reporting */
         val uastParams: List<UParameter>,
+        /** paramIdx -> type string for reactive-type params (State<T>, Flow<T>, etc.) */
+        val reactiveParamTypes: Map<Int, String>,
+        /** param indices of reactive-type params that are pass-through candidates */
+        val reactivePassThroughIndices: Set<Int>,
     )
 
     private var collected: MutableList<CollectedComposable>? = null
@@ -112,29 +120,31 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
     ) {
         savedContext = context
 
-        // 1) Reactive-type params (State<T>, Flow<T>): report immediately (per-composable)
+        // 1) Analyze reactive-type params (State<T>, Flow<T>) — do NOT report yet, collect for chain analysis
         val reactiveParams = findReactiveParameters(method)
+        val reactiveParamTypes = mutableMapOf<Int, String>()
+        val reactivePassThroughIndices = mutableSetOf<Int>()
         for ((paramName, paramType) in reactiveParams) {
+            val paramIdx = method.uastParameters.indexOfFirst { it.name == paramName }
+            if (paramIdx < 0) continue
+            reactiveParamTypes[paramIdx] = paramType
             val consumedLocally = isParameterConsumedLocally(function, paramName)
             val childCalls = findChildComposableCalls(function, paramName)
             if (!consumedLocally && childCalls.size == 1) {
-                val param = method.uastParameters.find { it.name == paramName } ?: continue
-                context.report(
-                    ReactiveStatePassThroughIssue.ISSUE,
-                    param as UElement,
-                    context.getLocation(param as UElement),
-                    "Reactive state parameter '$paramName' of type '$paramType' is passed through " +
-                        "without being used. Consider moving state closer to usage or passing immutable value."
-                )
+                reactivePassThroughIndices.add(paramIdx)
             }
         }
 
-        // 2) Collect info for file-level reactive-derived analysis (processed in afterCheckFile)
+        // 2) Collect info for file-level analysis (both reactive-type and derived, processed in afterCheckFile)
         val name = method.name
         val paramNames = method.uastParameters.map { it.name ?: "" }
         val localReactiveVars = findLocalReactiveVars(function)
         val callSites = findCallSites(function)
-        collected?.add(CollectedComposable(name, paramNames, localReactiveVars, callSites, method.uastParameters.toList()))
+        collected?.add(CollectedComposable(
+            name, paramNames, localReactiveVars, callSites,
+            method.uastParameters.toList(),
+            reactiveParamTypes, reactivePassThroughIndices
+        ))
     }
 
     override fun afterCheckFile(context: Context) {
@@ -145,7 +155,7 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         val composableNames = infos.map { it.name }.toSet()
         val infoByName = infos.associateBy { it.name }
 
-        // Fixpoint: compute reactive-derived (methodName, paramIndex) pairs
+        // ── Fixpoint: compute reactive-derived (methodName, paramIndex) pairs ──
         val derived = mutableSetOf<Pair<String, Int>>()
         var changed = true
         while (changed) {
@@ -169,18 +179,66 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
             }
         }
 
-        // Report derived pass-through params
+        // ── Build pass-through nodes and edges for chain detection ──
+        val passThroughNodes = mutableSetOf<Pair<String, Int>>()
+        val passThroughEdges = mutableMapOf<Pair<String, Int>, Pair<String, Int>>()
+
+        // Reactive-type pass-throughs (State<T>, Flow<T>, etc.)
+        for (info in infos) {
+            for (paramIdx in info.reactivePassThroughIndices) {
+                val node = info.name to paramIdx
+                passThroughNodes.add(node)
+                val paramName = info.paramNames[paramIdx]
+                val target = findPassThroughTarget(info, paramName, composableNames)
+                if (target != null) {
+                    passThroughEdges[node] = target
+                }
+            }
+        }
+
+        // Derived reactive pass-throughs (values from mutableStateOf, etc.)
         for (info in infos) {
             for ((idx, paramName) in info.paramNames.withIndex()) {
-                if ((info.name to idx) !in derived) continue
+                val node = info.name to idx
+                if (node in passThroughNodes) continue  // Already handled as reactive-type
+                if (node !in derived) continue
                 if (!isPassThrough(info, paramName, composableNames)) continue
+                passThroughNodes.add(node)
+                val target = findPassThroughTarget(info, paramName, composableNames)
+                if (target != null) {
+                    passThroughEdges[node] = target
+                }
+            }
+        }
+
+        // ── Find chains of length >= 2: flag nodes whose successor is also a pass-through ──
+        val toFlag = mutableSetOf<Pair<String, Int>>()
+        for ((source, target) in passThroughEdges) {
+            if (target in passThroughNodes) {
+                toFlag.add(source)
+                toFlag.add(target)
+            }
+        }
+
+        // ── Report only flagged pass-throughs (part of a chain >= 2) ──
+        for (info in infos) {
+            for ((idx, paramName) in info.paramNames.withIndex()) {
+                val node = info.name to idx
+                if (node !in toFlag) continue
                 val param = info.uastParams.getOrNull(idx) ?: continue
+                val message = if (idx in info.reactiveParamTypes) {
+                    val paramType = info.reactiveParamTypes[idx]!!
+                    "Reactive state parameter '$paramName' of type '$paramType' in function '${info.name}' " +
+                        "is passed through without being used. Consider moving state closer to usage or passing immutable value."
+                } else {
+                    "Reactive state or state-derived parameter '$paramName' in function '${info.name}' " +
+                        "is passed through without being used. Consider moving state closer to usage or passing immutable value."
+                }
                 javaCtx.report(
                     ReactiveStatePassThroughIssue.ISSUE,
                     param as UElement,
                     javaCtx.getLocation(param as UElement),
-                    "Reactive state or state-derived parameter '$paramName' is passed through " +
-                        "without being used. Consider moving state closer to usage or passing immutable value."
+                    message
                 )
             }
         }
@@ -230,6 +288,23 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
             }
         }
         return sites
+    }
+
+    /**
+     * Find the target composable and param index that a pass-through parameter is forwarded to.
+     * Returns (childFunctionName, childParamIdx) or null if not found in known composables.
+     */
+    private fun findPassThroughTarget(
+        info: CollectedComposable,
+        paramName: String,
+        composableNames: Set<String>,
+    ): Pair<String, Int>? {
+        for ((calleeName, paramIdx, argName) in info.callSites) {
+            if (argName == paramName && calleeName in composableNames) {
+                return calleeName to paramIdx
+            }
+        }
+        return null
     }
 
     /**

@@ -19,7 +19,7 @@ class ReactiveStatePassThroughDetectorTest {
     }
 
     @Test
-    fun `pass-through State parameter to single child is flagged`() {
+    fun `single pass-through State parameter is not flagged`() {
         val code = kotlin(
             """
             package test
@@ -29,7 +29,7 @@ class ReactiveStatePassThroughDetectorTest {
 
             @Composable
             fun Container(state: State<UiState>) {
-                Child(state)  // Pass-through without using state
+                Child(state)  // Single pass-through — chain of 1, not flagged
             }
 
             @Composable
@@ -42,11 +42,11 @@ class ReactiveStatePassThroughDetectorTest {
             """
         ).indented()
 
-        lintCheck(code).expectWarningCount(1)
+        lintCheck(code).expectClean()
     }
 
     @Test
-    fun `pass-through MutableState parameter to single child is flagged`() {
+    fun `single pass-through MutableState parameter is not flagged`() {
         val code = kotlin(
             """
             package test
@@ -56,7 +56,7 @@ class ReactiveStatePassThroughDetectorTest {
 
             @Composable
             fun Container(state: MutableState<UiState>) {
-                Child(state)
+                Child(state)  // Single pass-through — chain of 1, not flagged
             }
 
             @Composable
@@ -69,11 +69,11 @@ class ReactiveStatePassThroughDetectorTest {
             """
         ).indented()
 
-        lintCheck(code).expectWarningCount(1)
+        lintCheck(code).expectClean()
     }
 
     @Test
-    fun `pass-through StateFlow parameter to single child is flagged`() {
+    fun `single pass-through StateFlow parameter is not flagged`() {
         val code = kotlin(
             """
             package test
@@ -84,7 +84,7 @@ class ReactiveStatePassThroughDetectorTest {
 
             @Composable
             fun Container(stateFlow: StateFlow<UiState>) {
-                Child(stateFlow)
+                Child(stateFlow)  // Single pass-through — chain of 1, not flagged
             }
 
             @Composable
@@ -98,11 +98,11 @@ class ReactiveStatePassThroughDetectorTest {
             """
         ).indented()
 
-        lintCheck(code).expectWarningCount(1)
+        lintCheck(code).expectClean()
     }
 
     @Test
-    fun `pass-through Flow parameter to single child is flagged`() {
+    fun `single pass-through Flow parameter is not flagged`() {
         val code = kotlin(
             """
             package test
@@ -113,7 +113,7 @@ class ReactiveStatePassThroughDetectorTest {
 
             @Composable
             fun Container(flow: Flow<UiState>) {
-                Child(flow)
+                Child(flow)  // Single pass-through — chain of 1, not flagged
             }
 
             @Composable
@@ -127,7 +127,7 @@ class ReactiveStatePassThroughDetectorTest {
             """
         ).indented()
 
-        lintCheck(code).expectWarningCount(1)
+        lintCheck(code).expectClean()
     }
 
     @Test
@@ -397,7 +397,11 @@ class ReactiveStatePassThroughDetectorTest {
         ).indented()
 
         // Both LayerA and LayerB are pass-through layers
-        lintCheck(code).expectWarningCount(2)
+        lintCheck(code)
+            .expectWarningCount(2)
+            .expectContains("parameter 'state'")
+            .expectContains("in function 'LayerA'")
+            .expectContains("in function 'LayerB'")
     }
 
     @Test
@@ -430,7 +434,11 @@ class ReactiveStatePassThroughDetectorTest {
         ).indented()
 
         // t2 and t3 are pass-through layers for the state-derived value
-        lintCheck(code).expectWarningCount(2)
+        lintCheck(code)
+            .expectWarningCount(2)
+            .expectContains("parameter 'test'")
+            .expectContains("in function 'T2'")
+            .expectContains("in function 'T3'")
     }
 
     @Test
@@ -462,7 +470,7 @@ class ReactiveStatePassThroughDetectorTest {
     }
 
     @Test
-    fun `state parameter used in composition but not for value is still flagged`() {
+    fun `single pass-through state parameter not consumed is not flagged`() {
         val code = kotlin(
             """
             package test
@@ -472,7 +480,7 @@ class ReactiveStatePassThroughDetectorTest {
 
             @Composable
             fun Container(state: State<UiState>) {
-                // state is in scope but not actually read
+                // state is in scope but not actually read — single pass-through, chain of 1
                 Child(state)
             }
 
@@ -486,6 +494,6 @@ class ReactiveStatePassThroughDetectorTest {
             """
         ).indented()
 
-        lintCheck(code).expectWarningCount(1)
+        lintCheck(code).expectClean()
     }
 }
