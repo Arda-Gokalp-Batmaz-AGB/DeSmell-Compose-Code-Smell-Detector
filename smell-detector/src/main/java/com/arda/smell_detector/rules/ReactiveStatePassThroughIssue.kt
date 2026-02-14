@@ -104,6 +104,8 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         val reactiveParamTypes: Map<Int, String>,
         /** param indices of reactive-type params that are pass-through candidates */
         val reactivePassThroughIndices: Set<Int>,
+        /** local reactive var name -> KtProperty PSI element (for creation-point reporting) */
+        val localReactiveVarProperties: Map<String, KtProperty>,
     )
 
     private var collected: MutableList<CollectedComposable>? = null
@@ -138,12 +140,14 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         // 2) Collect info for file-level analysis (both reactive-type and derived, processed in afterCheckFile)
         val name = method.name
         val paramNames = method.uastParameters.map { it.name ?: "" }
-        val localReactiveVars = findLocalReactiveVars(function)
+        val localReactiveVarProperties = findLocalReactiveVarProperties(function)
+        val localReactiveVars = localReactiveVarProperties.keys
         val callSites = findCallSites(function)
         collected?.add(CollectedComposable(
             name, paramNames, localReactiveVars, callSites,
             method.uastParameters.toList(),
-            reactiveParamTypes, reactivePassThroughIndices
+            reactiveParamTypes, reactivePassThroughIndices,
+            localReactiveVarProperties
         ))
     }
 
@@ -156,7 +160,9 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         val infoByName = infos.associateBy { it.name }
 
         // ── Fixpoint: compute reactive-derived (methodName, paramIndex) pairs ──
+        // Also track origin: (originFunctionName, originVariableName)
         val derived = mutableSetOf<Pair<String, Int>>()
+        val derivedOrigins = mutableMapOf<Pair<String, Int>, Pair<String, String>>()
         var changed = true
         while (changed) {
             changed = false
@@ -173,7 +179,20 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
                             callerParamIdx >= 0 && (info.name to callerParamIdx) in derived
                         }
                     if (isReactive) {
-                        if (derived.add(calleeName to paramIdx)) changed = true
+                        val target = calleeName to paramIdx
+                        if (derived.add(target)) {
+                            changed = true
+                            // Track origin of the reactive state
+                            val origin = if (argName in info.localReactiveVars) {
+                                info.name to argName
+                            } else {
+                                val callerParamIdx = info.paramNames.indexOf(argName)
+                                if (callerParamIdx >= 0) derivedOrigins[info.name to callerParamIdx] else null
+                            }
+                            if (origin != null) {
+                                derivedOrigins[target] = origin
+                            }
+                        }
                     }
                 }
             }
@@ -220,24 +239,93 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
             }
         }
 
+        // ── Build unified origin map: (funcName, paramIdx) -> (originFunc, originVar) ──
+        val origins = mutableMapOf<Pair<String, Int>, Pair<String, String>>()
+
+        // Origins from derived analysis (mutableStateOf-based values)
+        for ((node, origin) in derivedOrigins) {
+            if (node in toFlag) {
+                origins[node] = origin
+            }
+        }
+
+        // Origins for reactive-type chains: search for caller with a local reactive var
+        val reverseEdges = mutableMapOf<Pair<String, Int>, Pair<String, Int>>()
+        for ((source, target) in passThroughEdges) {
+            reverseEdges[target] = source
+        }
+        for (info in infos) {
+            for (paramIdx in info.reactivePassThroughIndices) {
+                val node = info.name to paramIdx
+                if (node !in toFlag || node in origins) continue
+                // Trace backward to find the root of this chain
+                var root = node
+                while (reverseEdges.containsKey(root)) {
+                    root = reverseEdges[root]!!
+                }
+                // Search composables for who calls the root function with a local reactive var
+                val rootFunc = root.first
+                val rootParamIdx = root.second
+                for (callerInfo in infos) {
+                    for ((calleeName, callParamIdx, argName) in callerInfo.callSites) {
+                        if (calleeName == rootFunc && callParamIdx == rootParamIdx && argName != null) {
+                            if (argName in callerInfo.localReactiveVars) {
+                                val origin = callerInfo.name to argName
+                                // Set origin for all nodes in the chain from root onward
+                                var chainNode: Pair<String, Int>? = root
+                                while (chainNode != null && chainNode in toFlag) {
+                                    origins[chainNode] = origin
+                                    chainNode = passThroughEdges[chainNode]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // ── Report only flagged pass-throughs (part of a chain >= 2) ──
         for (info in infos) {
             for ((idx, paramName) in info.paramNames.withIndex()) {
                 val node = info.name to idx
                 if (node !in toFlag) continue
                 val param = info.uastParams.getOrNull(idx) ?: continue
+
+                val origin = origins[node]
+                val originSuffix = if (origin != null) {
+                    " (originated from variable '${origin.second}' in function '${origin.first}')"
+                } else ""
+
                 val message = if (idx in info.reactiveParamTypes) {
                     val paramType = info.reactiveParamTypes[idx]!!
                     "Reactive state parameter '$paramName' of type '$paramType' in function '${info.name}' " +
-                        "is passed through without being used. Consider moving state closer to usage or passing immutable value."
+                        "is passed through without being used$originSuffix. " +
+                        "Consider moving state closer to usage or passing immutable value."
                 } else {
                     "Reactive state or state-derived parameter '$paramName' in function '${info.name}' " +
-                        "is passed through without being used. Consider moving state closer to usage or passing immutable value."
+                        "is passed through without being used$originSuffix. " +
+                        "Consider moving state closer to usage or passing immutable value."
                 }
+
+                // Primary location: the pass-through parameter
+                var location = javaCtx.getLocation(param as UElement)
+
+                // Secondary location: the creation point of the reactive state variable
+                if (origin != null) {
+                    val originInfo = infoByName[origin.first]
+                    val prop = originInfo?.localReactiveVarProperties?.get(origin.second)
+                    if (prop != null) {
+                        location = location.withSecondary(
+                            javaCtx.getLocation(prop),
+                            "Reactive state variable '${origin.second}' created here in function '${origin.first}'"
+                        )
+                    }
+                }
+
                 javaCtx.report(
                     ReactiveStatePassThroughIssue.ISSUE,
                     param as UElement,
-                    javaCtx.getLocation(param as UElement),
+                    location,
                     message
                 )
             }
@@ -251,21 +339,22 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
     // ─── Data collection helpers (using Kotlin PSI, which works reliably in visitComposable) ───
 
     /**
-     * Find local variable names whose value comes from mutableStateOf (via delegation).
+     * Find local variables whose value comes from mutableStateOf (via delegation).
      * e.g. `var den by remember { mutableStateOf(0) }`
+     * Returns name -> KtProperty PSI element for creation-point reporting.
      */
-    private fun findLocalReactiveVars(function: KtFunction): Set<String> {
-        val names = mutableSetOf<String>()
+    private fun findLocalReactiveVarProperties(function: KtFunction): Map<String, KtProperty> {
+        val map = mutableMapOf<String, KtProperty>()
         for (prop in function.findChildrenByClass<KtProperty>()) {
             val name = prop.nameAsName?.asString() ?: continue
             val delegate = prop.delegate ?: continue
             val expr = delegate.expression ?: continue
             val text = expr.text ?: ""
             if (text.contains(MUTABLE_STATE_OF)) {
-                names.add(name)
+                map[name] = prop
             }
         }
-        return names
+        return map
     }
 
     /**

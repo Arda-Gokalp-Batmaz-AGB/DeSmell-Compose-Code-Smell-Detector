@@ -434,11 +434,13 @@ class ReactiveStatePassThroughDetectorTest {
         ).indented()
 
         // t2 and t3 are pass-through layers for the state-derived value
+        // reports should include the creation-point variable 'den' in function 'T1'
         lintCheck(code)
             .expectWarningCount(2)
             .expectContains("parameter 'test'")
             .expectContains("in function 'T2'")
             .expectContains("in function 'T3'")
+            .expectContains("originated from variable 'den' in function 'T1'")
     }
 
     @Test
