@@ -7,12 +7,13 @@ import org.junit.Test
 import stubs.COMPOSITION_LOCAL_STUBS
 import stubs.FLOW_AND_COLLECT_STUBS
 import stubs.COLLECT_AS_STATE_STUBS
+import stubs.COLLECT_AS_STATE_WITH_LIFECYCLE_STUBS
 
 class ReactiveStatePassThroughDetectorTest {
 
     private fun lintCheck(vararg files: TestFile): TestLintResult {
         return lint()
-            .files(COMPOSITION_LOCAL_STUBS, FLOW_AND_COLLECT_STUBS, COLLECT_AS_STATE_STUBS, *files)
+            .files(COMPOSITION_LOCAL_STUBS, FLOW_AND_COLLECT_STUBS, COLLECT_AS_STATE_STUBS, COLLECT_AS_STATE_WITH_LIFECYCLE_STUBS, *files)
             .issues(ReactiveStatePassThroughIssue.ISSUE)
             .allowMissingSdk(true)
             .run()
@@ -712,5 +713,429 @@ class ReactiveStatePassThroughDetectorTest {
         // T2 → T3: T3 consumes test (string template), so T3 is NOT a pass-through
         // Only T2 remains as pass-through (chain of 1), not flagged
         lintCheck(code).expectClean()
+    }
+
+    // ─── Flow / collectAsState / collectAsStateWithLifecycle tests ───
+
+    @Test
+    fun `StateFlow passed through multiple layers is flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.StateFlow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(stateFlow: StateFlow<UiState>) {
+                LayerB(stateFlow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerB(stateFlow: StateFlow<UiState>) {
+                LayerC(stateFlow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerC(stateFlow: StateFlow<UiState>) {
+                val state = stateFlow.collectAsState(UiState(""))
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerA and LayerB both pass StateFlow through without collecting
+        lintCheck(code)
+            .expectWarningCount(2)
+            .expectContains("parameter 'stateFlow'")
+            .expectContains("in function 'LayerA'")
+            .expectContains("in function 'LayerB'")
+    }
+
+    @Test
+    fun `Flow passed through multiple layers is flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.Flow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(flow: Flow<UiState>) {
+                LayerB(flow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerB(flow: Flow<UiState>) {
+                LayerC(flow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerC(flow: Flow<UiState>) {
+                val state = flow.collectAsState(UiState(""))
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerA and LayerB both pass Flow through without collecting
+        lintCheck(code)
+            .expectWarningCount(2)
+            .expectContains("parameter 'flow'")
+            .expectContains("in function 'LayerA'")
+            .expectContains("in function 'LayerB'")
+    }
+
+    @Test
+    fun `MutableStateFlow passed through multiple layers is flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.MutableStateFlow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(flow: MutableStateFlow<UiState>) {
+                LayerB(flow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerB(flow: MutableStateFlow<UiState>) {
+                LayerC(flow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerC(flow: MutableStateFlow<UiState>) {
+                val state = flow.collectAsState(UiState(""))
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerA and LayerB both pass MutableStateFlow through without collecting
+        lintCheck(code)
+            .expectWarningCount(2)
+            .expectContains("parameter 'flow'")
+            .expectContains("in function 'LayerA'")
+            .expectContains("in function 'LayerB'")
+    }
+
+    @Test
+    fun `StateFlow consumed via collectAsState in middle layer breaks chain`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.StateFlow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(stateFlow: StateFlow<UiState>) {
+                LayerB(stateFlow)
+            }
+
+            @Composable
+            fun LayerB(stateFlow: StateFlow<UiState>) {
+                val state = stateFlow.collectAsState(UiState(""))  // Consumed via collectAsState
+                LayerC(stateFlow)
+            }
+
+            @Composable
+            fun LayerC(stateFlow: StateFlow<UiState>) {
+                val state = stateFlow.collectAsState(UiState(""))
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerB consumes stateFlow via collectAsState, breaking the chain
+        lintCheck(code).expectClean()
+    }
+
+    @Test
+    fun `Flow consumed via collectAsState in middle layer breaks chain`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.Flow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(flow: Flow<UiState>) {
+                LayerB(flow)
+            }
+
+            @Composable
+            fun LayerB(flow: Flow<UiState>) {
+                val state = flow.collectAsState(UiState(""))  // Consumed via collectAsState
+                LayerC(flow)
+            }
+
+            @Composable
+            fun LayerC(flow: Flow<UiState>) {
+                val state = flow.collectAsState(UiState(""))
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerB consumes flow via collectAsState, breaking the chain
+        lintCheck(code).expectClean()
+    }
+
+    @Test
+    fun `StateFlow consumed via collectAsStateWithLifecycle breaks chain`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.StateFlow
+            import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(stateFlow: StateFlow<UiState>) {
+                LayerB(stateFlow)
+            }
+
+            @Composable
+            fun LayerB(stateFlow: StateFlow<UiState>) {
+                val state = stateFlow.collectAsStateWithLifecycle(UiState(""))  // Consumed
+                LayerC(stateFlow)
+            }
+
+            @Composable
+            fun LayerC(stateFlow: StateFlow<UiState>) {
+                val state = stateFlow.collectAsStateWithLifecycle(UiState(""))
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerB consumes stateFlow via collectAsStateWithLifecycle, breaking the chain
+        lintCheck(code).expectClean()
+    }
+
+    @Test
+    fun `StateFlow collected to State then State passed to single child is not flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.StateFlow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun Parent(stateFlow: StateFlow<UiState>) {
+                val state = stateFlow.collectAsState(UiState(""))  // Consumed — collected to State
+                Child(state)  // Passing collected State — single layer, not flagged
+            }
+
+            @Composable
+            fun Child(state: State<UiState>) {
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // Parent consumes StateFlow via collectAsState; passing result State is chain of 1
+        lintCheck(code).expectClean()
+    }
+
+    @Test
+    fun `StateFlow collected to State then State passed through multiple layers is flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.StateFlow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun Parent(stateFlow: StateFlow<UiState>) {
+                val state = stateFlow.collectAsState(UiState(""))
+                LayerA(state)
+            }
+
+            @Composable
+            fun LayerA(state: State<UiState>) {
+                LayerB(state)  // Pass-through
+            }
+
+            @Composable
+            fun LayerB(state: State<UiState>) {
+                LayerC(state)  // Pass-through
+            }
+
+            @Composable
+            fun LayerC(state: State<UiState>) {
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // Parent consumes StateFlow (collectAsState), but the resulting State is
+        // passed through LayerA → LayerB → LayerC — chain of 2 pass-throughs
+        lintCheck(code)
+            .expectWarningCount(2)
+            .expectContains("parameter 'state'")
+            .expectContains("in function 'LayerA'")
+            .expectContains("in function 'LayerB'")
+    }
+
+    @Test
+    fun `multiple different reactive params where one is consumed and other passed through`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.StateFlow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(state: State<UiState>, stateFlow: StateFlow<UiState>) {
+                LayerB(state, stateFlow)
+            }
+
+            @Composable
+            fun LayerB(state: State<UiState>, stateFlow: StateFlow<UiState>) {
+                val collected = stateFlow.collectAsState(UiState(""))  // stateFlow consumed
+                LayerC(state, stateFlow)
+            }
+
+            @Composable
+            fun LayerC(state: State<UiState>, stateFlow: StateFlow<UiState>) {
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // state: LayerA → LayerB → LayerC (LayerC consumes). Chain of 2 — flagged.
+        // stateFlow: LayerB consumes via collectAsState, breaking the chain.
+        lintCheck(code)
+            .expectWarningCount(2)
+            .expectContains("parameter 'state'")
+            .expectContains("in function 'LayerA'")
+            .expectContains("in function 'LayerB'")
+    }
+
+    @Test
+    fun `Flow consumed via extension method in middle layer is not flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.Flow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(flow: Flow<UiState>) {
+                LayerB(flow)
+            }
+
+            @Composable
+            fun LayerB(flow: Flow<UiState>) {
+                flow.also { }  // Consumed — method call on flow
+                LayerC(flow)
+            }
+
+            @Composable
+            fun LayerC(flow: Flow<UiState>) {
+                val state = flow.collectAsState(UiState(""))
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerB consumes flow via .also { }, breaking the chain
+        lintCheck(code).expectClean()
+    }
+
+    @Test
+    fun `three layer StateFlow pass-through chain is flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.StateFlow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(stateFlow: StateFlow<UiState>) {
+                LayerB(stateFlow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerB(stateFlow: StateFlow<UiState>) {
+                LayerC(stateFlow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerC(stateFlow: StateFlow<UiState>) {
+                LayerD(stateFlow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerD(stateFlow: StateFlow<UiState>) {
+                val state = stateFlow.collectAsState(UiState(""))
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerA, LayerB, and LayerC all pass-through — chain of 3
+        lintCheck(code)
+            .expectWarningCount(3)
+            .expectContains("parameter 'stateFlow'")
+            .expectContains("in function 'LayerA'")
+            .expectContains("in function 'LayerB'")
+            .expectContains("in function 'LayerC'")
     }
 }
