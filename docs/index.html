@@ -392,7 +392,7 @@
   <header>
     <h1>DeSmell — Smell Detection Catalog</h1>
     <p class="subtitle">
-      Complete reference guide for all 12 presentation-layer code smells detected by DeSmell in Jetpack Compose applications.
+      Complete reference guide for all 13 presentation-layer code smells detected by DeSmell in Jetpack Compose applications.
       Each smell includes detection rules, metrics, thresholds, and practical examples to help developers write cleaner, more maintainable Compose code.
     </p>
   </header>
@@ -418,6 +418,7 @@
             <li><a href="#reused-key">Reused Key</a></li>
             <li><a href="#sec">SEC</a></li>
             <li><a href="#slot-count">Slot Count</a></li>
+            <li><a href="#reactive-pass-through">Reactive State Pass-Through</a></li>
           </ol>
         </li>
         <li><a href="#appendix-metrics">Metrics Reference</a></li>
@@ -481,6 +482,7 @@
             <tr><td><strong>Reused Key</strong></td><td><code>ReusedKeyInNestedScope</code></td><td>Binary</td><td>Any nested reuse</td><td><span class="chip chip-recomp">Recomposition</span></td></tr>
             <tr><td><strong>SEC</strong></td><td><code>SideEffectComplexityIssue</code></td><td>Effect complexity</td><td><code>SEC ≥ 10</code></td><td><span class="chip chip-recomp">Side-Effects</span></td></tr>
             <tr><td><strong>Slot Count</strong></td><td><code>SlotCountInComposable</code></td><td>Slot count</td><td><code>&gt; 3</code></td><td><span class="chip chip-api">API Design</span></td></tr>
+            <tr><td><strong>Reactive State Pass-Through</strong></td><td><code>ReactiveStatePassThrough</code></td><td>Pass-through chain length</td><td><code>chain ≥ 2</code></td><td><span class="chip chip-recomp">Recomposition</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -1339,6 +1341,106 @@ fun Card(
           <li>Extract some slots into separate composable parameters (non-composable)</li>
           <li>Break the composable into smaller components</li>
           <li>Use builder pattern or DSL for complex configurations</li>
+        </ul>
+      </section>
+
+      <!-- 13 -->
+      <section id="reactive-pass-through">
+        <h2>13. Reactive State Pass-Through</h2>
+        <div class="meta">
+          <span class="detector-id">ReactiveStatePassThrough</span>
+          <span class="chip chip-recomp">Recomposition Efficiency &amp; State Handling</span>
+        </div>
+
+        <p><strong>What it detects:</strong> Composables that receive reactive state (or values derived from reactive state) as parameters but do not consume or transform them—only passing them unchanged to a single child. The detector reports only when the same parameter is passed through <strong>at least two consecutive</strong> composable layers without being used (a chain of ≥ 2 pass-throughs).</p>
+
+        <h3>Why it matters</h3>
+        <p>Passing reactive objects (<code>State&lt;T&gt;</code>, <code>Flow&lt;T&gt;</code>, <code>StateFlow&lt;T&gt;</code>, etc.) or state-derived values through multiple intermediate composables without use increases recomposition scope, violates proper state ownership, and makes the data flow harder to reason about. State should be collected or consumed closer to where it is used, or passed as immutable snapshots.</p>
+
+        <h3>Reactive types considered</h3>
+        <p>The detector treats the following parameter types as reactive state:</p>
+        <table class="kvs">
+          <tr>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+          <tr><td><code>State&lt;T&gt;</code> / <code>MutableState&lt;T&gt;</code></td><td>Compose runtime state</td></tr>
+          <tr><td><code>StateFlow&lt;T&gt;</code> / <code>MutableStateFlow&lt;T&gt;</code></td><td>Kotlin Flow hot stream</td></tr>
+          <tr><td><code>Flow&lt;T&gt;</code></td><td>Kotlin Flow cold stream</td></tr>
+          <tr><td><code>LiveData&lt;T&gt;</code></td><td>Android LiveData</td></tr>
+          <tr><td>Values from <code>mutableStateOf</code></td><td>e.g. <code>var x by remember { mutableStateOf(0) }</code> passed as <code>Int</code></td></tr>
+          <tr><td>Values from <code>collectAsState</code> / <code>collectAsStateWithLifecycle</code></td><td>Collected <code>State&lt;T&gt;</code> passed to children</td></tr>
+        </table>
+
+        <h3>Pass-through vs consumption</h3>
+        <table class="kvs">
+          <tr>
+            <th>Pass-through (not used)</th>
+            <th>Consumption (used)</th>
+          </tr>
+          <tr>
+            <td>Parameter only passed as a direct argument to one child composable</td>
+            <td>Parameter used in any other way: <code>.value</code>, <code>.toString()</code>, <code>.let { }</code>, <code>collectAsState</code>, string interpolation, property access, etc.</td>
+          </tr>
+        </table>
+
+        <h3>Chain rule</h3>
+        <div class="threshold-box">
+          <strong>Report when:</strong> There is a chain of <strong>≥ 2</strong> consecutive composables that each pass the same reactive parameter through to a single child without consuming it. A single pass-through (chain of 1) is not reported.
+        </div>
+
+        <h3>Origin and secondary locations</h3>
+        <p>When the reactive state originates from a local variable (e.g. <code>mutableStateOf</code>, <code>collectAsState</code>, <code>collectAsStateWithLifecycle</code>), the report can include a secondary location pointing to the creation point (e.g. <code>val state = flow.collectAsState(...)</code>) to help locate where the state was introduced.</p>
+
+        <h3>Examples</h3>
+        <div class="code-block">
+          <span class="example-label">❌ Bad</span>
+          <div class="code bad-example">@Composable
+fun LayerA(flow: Flow&lt;UiState&gt;) {
+    LayerB(flow)  // Pass-through
+}
+
+@Composable
+fun LayerB(flow: Flow&lt;UiState&gt;) {
+    LayerC(flow)  // Pass-through
+}
+
+@Composable
+fun LayerC(flow: Flow&lt;UiState&gt;) {
+    val state = flow.collectAsState(UiState(""))  // Only LayerC consumes
+    Text(state.value.title)
+}
+// LayerA and LayerB are flagged: chain of 2 pass-throughs</div>
+        </div>
+
+        <div class="code-block">
+          <span class="example-label">✅ Good</span>
+          <div class="code good-example">// Option 1: Collect at the top, pass State through one layer (chain of 1 — not reported)
+@Composable
+fun Parent(stateFlow: StateFlow&lt;UiState&gt;) {
+    val state = stateFlow.collectAsState(UiState(""))
+    Child(state)  // Single pass-through OK
+}
+
+@Composable
+fun Child(state: State&lt;UiState&gt;) {
+    Text(state.value.title)
+}
+
+// Option 2: Collect close to usage
+@Composable
+fun LayerA(flow: Flow&lt;UiState&gt;) {
+    val state = flow.collectAsState(UiState(""))  // Consumed here
+    LayerB(state)  // Pass immutable snapshot or derived state if needed
+}</div>
+        </div>
+
+        <h3>How to fix</h3>
+        <ul>
+          <li>Move state collection (<code>collectAsState</code>, <code>collectAsStateWithLifecycle</code>) closer to the composable that actually uses the state</li>
+          <li>Pass immutable snapshots (e.g. <code>state.value</code>) instead of the reactive object when only a snapshot is needed downstream</li>
+          <li>Derive specific state (e.g. <code>derivedStateOf</code>) at the layer that needs it instead of passing the full reactive object through</li>
+          <li>Eliminate unnecessary intermediate composables that only forward the parameter</li>
         </ul>
       </section>
 

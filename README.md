@@ -8,7 +8,7 @@
 
 ## Introduction
 
-**DeSmell** is a static analysis tool that identifies architectural and maintainability code smells in modern declarative Android presentation layers built with Jetpack Compose. Unlike traditional Android code smell detectors designed for imperative XML/View architectures, DeSmell operationalizes a comprehensive taxonomy of twelve presentation-layer smells derived via the Goal-Question-Metric (GQM) paradigm.
+**DeSmell** is a static analysis tool that identifies architectural and maintainability code smells in modern declarative Android presentation layers built with Jetpack Compose. Unlike traditional Android code smell detectors designed for imperative XML/View architectures, DeSmell operationalizes a comprehensive taxonomy of thirteen presentation-layer smells derived via the Goal-Question-Metric (GQM) paradigm.
 
 ### Aim
 
@@ -21,7 +21,7 @@ The adoption of declarative UI frameworks like Jetpack Compose invalidates tradi
 
 DeSmell integrates seamlessly with Android Lint, providing real-time feedback during development and automated quality checks in continuous integration pipelines.
 
-> 📘 **📖 Smell Detection Catalog**: For comprehensive documentation with detailed explanations, code examples, and metrics for all 12 code smells, visit the [**DeSmell Smell Detection Catalog**](https://arda-gokalp-batmaz-agb.github.io/DeSmell-Compose-Code-Smell-Detector/) on GitHub Pages.
+> 📘 **📖 Smell Detection Catalog**: For comprehensive documentation with detailed explanations, code examples, and metrics for all 12 code smells, visit the [**DeSmell Smell Detection Catalog**](https://arda-gokalp-batmaz-agb.github.io/DeSmell-Compose-Code-Smell-Detector/) on GitHub Pages. The catalog includes the **Reactive State Pass-Through** smell (reactive state or state-derived values passed through two or more composable layers without being used).
 
 ---
 
@@ -521,7 +521,7 @@ For detailed methodology, theoretical foundations, and complete evaluation resul
 
 ## Detected Code Smells
 
-DeSmell implements 12 specialized detectors for identifying presentation-layer code smells in Jetpack Compose applications:
+DeSmell implements 13 specialized detectors for identifying presentation-layer code smells in Jetpack Compose applications:
 
 > 📖 **Detailed Documentation**: For comprehensive information about each smell, including detection rules, metrics, formulas, thresholds, and practical code examples, see the [**DeSmell Smell Detection Catalog**](docs/DeSmell_Smell_Catalog.html). The catalog provides developer-friendly explanations, good/bad code examples, and actionable guidance for fixing each detected smell.
 
@@ -541,6 +541,7 @@ DeSmell implements 12 specialized detectors for identifying presentation-layer c
 | `SideEffectComplexityIssue` | Side-Effect Orchestration | Warning | Complex side effects |
 | `ComposableFunctionComplexityIssue` | Architectural Responsibility & Logic Leakage | Warning | High structural/logical complexity (CFC) |
 | `HighSideEffectDensityIssue` | Side-Effect Orchestration | Warning | High side effect density (SED) |
+| `ReactiveStatePassThrough` | Recomposition Efficiency & State Handling | Warning | Reactive state passed through ≥2 layers without use |
 
 ### Metrics Explained
 
