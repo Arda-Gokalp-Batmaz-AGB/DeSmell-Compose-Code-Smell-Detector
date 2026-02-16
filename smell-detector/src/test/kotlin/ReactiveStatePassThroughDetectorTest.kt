@@ -719,6 +719,51 @@ class ReactiveStatePassThroughDetectorTest {
     // ─── Flow / collectAsState / collectAsStateWithLifecycle tests ───
 
     @Test
+    fun `Flow passed through multiple layers with collectAsState only in last layer is flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.Flow
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun LayerA(flow: Flow<UiState>) {
+                LayerB(flow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerB(flow: Flow<UiState>) {
+                LayerC(flow)  // Pass-through
+            }
+
+            @Composable
+            fun LayerC(flow: Flow<UiState>) {
+                val state = flow.collectAsState(UiState(""))
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // LayerA and LayerB both pass Flow through without collecting; LayerC consumes via collectAsState
+        // Skip FQN mode: type resolution for Flow in FQN mode can differ and produce inconsistent output
+        lint()
+            .files(COMPOSITION_LOCAL_STUBS, FLOW_AND_COLLECT_STUBS, COLLECT_AS_STATE_STUBS, COLLECT_AS_STATE_WITH_LIFECYCLE_STUBS, code)
+            .issues(ReactiveStatePassThroughIssue.ISSUE)
+            .allowMissingSdk(true)
+            .skipTestModes(TestMode.FULLY_QUALIFIED)
+            .run()
+            .expectWarningCount(2)
+            .expectContains("parameter 'flow'")
+            .expectContains("in function 'LayerA'")
+            .expectContains("in function 'LayerB'")
+    }
+
+    @Test
     fun `StateFlow passed through multiple layers is flagged`() {
         val code = kotlin(
             """
@@ -981,11 +1026,61 @@ class ReactiveStatePassThroughDetectorTest {
 
         // Parent consumes StateFlow (collectAsState), but the resulting State is
         // passed through LayerA → LayerB → LayerC — chain of 2 pass-throughs
+        // The origin points to the collectAsState creation in Parent
         lintCheck(code)
             .expectWarningCount(2)
             .expectContains("parameter 'state'")
             .expectContains("in function 'LayerA'")
             .expectContains("in function 'LayerB'")
+            .expectContains("originated from variable 'state' in function 'Parent'")
+    }
+
+    @Test
+    fun `collectAsStateWithLifecycle creation point is flagged as origin`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+            import kotlinx.coroutines.flow.StateFlow
+            import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+            data class UiState(val title: String)
+
+            @Composable
+            fun Parent(stateFlow: StateFlow<UiState>) {
+                val state = stateFlow.collectAsStateWithLifecycle(UiState(""))
+                LayerA(state)
+            }
+
+            @Composable
+            fun LayerA(state: State<UiState>) {
+                LayerB(state)  // Pass-through
+            }
+
+            @Composable
+            fun LayerB(state: State<UiState>) {
+                LayerC(state)  // Pass-through
+            }
+
+            @Composable
+            fun LayerC(state: State<UiState>) {
+                Text(state.value.title)
+            }
+
+            @Composable
+            fun Text(text: String) {}
+            """
+        ).indented()
+
+        // Parent consumes StateFlow (collectAsStateWithLifecycle), but the resulting State is
+        // passed through LayerA → LayerB → LayerC — chain of 2 pass-throughs
+        // The origin points to the collectAsStateWithLifecycle creation in Parent
+        lintCheck(code)
+            .expectWarningCount(2)
+            .expectContains("parameter 'state'")
+            .expectContains("in function 'LayerA'")
+            .expectContains("in function 'LayerB'")
+            .expectContains("originated from variable 'state' in function 'Parent'")
     }
 
     @Test

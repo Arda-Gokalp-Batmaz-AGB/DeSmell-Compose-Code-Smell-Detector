@@ -77,7 +77,12 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
             "kotlinx.coroutines.flow.StateFlow", "kotlinx.coroutines.flow.MutableStateFlow",
             "kotlinx.coroutines.flow.Flow", "androidx.lifecycle.LiveData",
         )
-        private const val MUTABLE_STATE_OF = "mutableStateOf"
+        /** Patterns identifying reactive state creation calls in initializers and delegations */
+        private val REACTIVE_CREATION_PATTERNS = listOf(
+            "mutableStateOf",
+            "collectAsState",
+            "collectAsStateWithLifecycle",
+        )
     }
 
     // ─── Per-file state: accumulated during visitComposable, processed in afterCheckFile ───
@@ -393,18 +398,30 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
     // ─── Data collection helpers (using Kotlin PSI, which works reliably in visitComposable) ───
 
     /**
-     * Find local variables whose value comes from mutableStateOf (via delegation).
-     * e.g. `var den by remember { mutableStateOf(0) }`
+     * Find local variables whose value comes from reactive state creation calls.
+     *
+     * Detected patterns:
+     * - Delegation: `var den by remember { mutableStateOf(0) }`
+     * - Initializer: `val state = flow.collectAsState(initial)`
+     * - Initializer: `val state = flow.collectAsStateWithLifecycle(initial)`
+     *
      * Returns name -> KtProperty PSI element for creation-point reporting.
      */
     private fun findLocalReactiveVarProperties(function: KtFunction): Map<String, KtProperty> {
         val map = mutableMapOf<String, KtProperty>()
         for (prop in function.findChildrenByClass<KtProperty>()) {
             val name = prop.nameAsName?.asString() ?: continue
-            val delegate = prop.delegate ?: continue
-            val expr = delegate.expression ?: continue
-            val text = expr.text ?: ""
-            if (text.contains(MUTABLE_STATE_OF)) {
+
+            // Check delegated properties (e.g., `var den by remember { mutableStateOf(0) }`)
+            val delegateText = prop.delegate?.expression?.text
+            if (delegateText != null && REACTIVE_CREATION_PATTERNS.any { delegateText.contains(it) }) {
+                map[name] = prop
+                continue
+            }
+
+            // Check initializer expressions (e.g., `val state = flow.collectAsState(...)`)
+            val initText = prop.initializer?.text
+            if (initText != null && REACTIVE_CREATION_PATTERNS.any { initText.contains(it) }) {
                 map[name] = prop
             }
         }
