@@ -85,13 +85,38 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
     /** Stored JavaContext for reporting in afterCheckFile */
     private var savedContext: JavaContext? = null
 
-    /** Collected composable info: (name, paramNames, localReactiveVars, callSites) */
+    /** A single argument at a call site */
+    private data class CallSiteArg(
+        /** Raw callee function name (e.g. "LayerB") */
+        val calleeName: String,
+        /** Number of value arguments at the call site (for overload disambiguation) */
+        val callArgCount: Int,
+        /** Positional index of the argument at the call site */
+        val positionalIdx: Int,
+        /** Named argument name (e.g. "state" in `state = state`), null for positional args */
+        val namedArgName: String?,
+        /** Simple name of the argument value expression (e.g. "flow" in `LayerB(flow)`), null if complex */
+        val argValueName: String?,
+    ) {
+        /** Resolve the callee's parameter index, using named argument if available */
+        fun resolveParamIdx(calleeParamNames: List<String>): Int {
+            if (namedArgName != null) {
+                val idx = calleeParamNames.indexOf(namedArgName)
+                if (idx >= 0) return idx
+            }
+            return positionalIdx
+        }
+    }
+
+    /** Collected composable info */
     private data class CollectedComposable(
-        val name: String,
+        /** Unique identifier for this composable (counter-based, collision-free) */
+        val uniqueId: String,
+        /** Original function name for display in reports and call-site matching */
+        val displayName: String,
         val paramNames: List<String>,
         val localReactiveVars: Set<String>,
-        /** (calleeName, paramIndex, argSimpleName?) */
-        val callSites: List<Triple<String, Int, String?>>,
+        val callSites: List<CallSiteArg>,
         /** UMethod parameters for reporting */
         val uastParams: List<UParameter>,
         /** paramIdx -> type string for reactive-type params (State<T>, Flow<T>, etc.) */
@@ -105,10 +130,12 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
     )
 
     private var collected: MutableList<CollectedComposable>? = null
+    private var composableCounter = 0
 
     override fun beforeCheckFile(context: Context) {
         savedContext = null
         collected = mutableListOf()
+        composableCounter = 0
     }
 
     override fun visitComposable(
@@ -118,8 +145,9 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
     ) {
         savedContext = context
 
-        val name = method.name
+        val displayName = method.name
         val paramNames = method.uastParameters.map { it.name ?: "" }
+        val uniqueId = "${displayName}__${composableCounter++}"
 
         // 1) Compute consumed params: any param used beyond being a direct function argument
         val consumedParams = mutableSetOf<String>()
@@ -149,7 +177,7 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         val localReactiveVars = localReactiveVarProperties.keys
         val callSites = findCallSites(function)
         collected?.add(CollectedComposable(
-            name, paramNames, localReactiveVars, callSites,
+            uniqueId, displayName, paramNames, localReactiveVars, callSites,
             method.uastParameters.toList(),
             reactiveParamTypes, reactivePassThroughIndices,
             localReactiveVarProperties,
@@ -162,38 +190,51 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         val infos = collected ?: return
         if (infos.isEmpty()) return
 
-        val composableNames = infos.map { it.name }.toSet()
-        val infoByName = infos.associateBy { it.name }
+        // ── Build overload resolution infrastructure ──
+        // Group composables by display name for call-site resolution
+        val infosByDisplayName: Map<String, List<CollectedComposable>> = infos.groupBy { it.displayName }
+        val composableDisplayNames: Set<String> = infosByDisplayName.keys
+        val infoByUniqueId: Map<String, CollectedComposable> = infos.associateBy { it.uniqueId }
 
-        // ── Fixpoint: compute reactive-derived (methodName, paramIndex) pairs ──
-        // Also track origin: (originFunctionName, originVariableName)
+        // Resolve a callee name + arg count to the matching composable (handles overloads)
+        fun resolveCallee(rawCalleeName: String, callArgCount: Int): CollectedComposable? {
+            val candidates = infosByDisplayName[rawCalleeName] ?: return null
+            if (candidates.size == 1) return candidates[0]
+            // Multiple overloads: prefer exact param count match, fall back to closest
+            return candidates.firstOrNull { it.paramNames.size == callArgCount }
+                ?: candidates.minByOrNull { kotlin.math.abs(it.paramNames.size - callArgCount) }
+        }
+
+        // ── Fixpoint: compute reactive-derived (uniqueId, paramIndex) pairs ──
+        // Also track origin: (originUniqueId, originVariableName)
         val derived = mutableSetOf<Pair<String, Int>>()
         val derivedOrigins = mutableMapOf<Pair<String, Int>, Pair<String, String>>()
         var changed = true
         while (changed) {
             changed = false
             for (info in infos) {
-                for ((calleeName, paramIdx, argName) in info.callSites) {
-                    if (calleeName !in composableNames) continue
-                    val calleeInfo = infoByName[calleeName] ?: continue
-                    if (paramIdx >= calleeInfo.paramNames.size) continue
-                    if (argName == null) continue
+                for (cs in info.callSites) {
+                    if (cs.calleeName !in composableDisplayNames) continue
+                    val calleeInfo = resolveCallee(cs.calleeName, cs.callArgCount) ?: continue
+                    val resolvedIdx = cs.resolveParamIdx(calleeInfo.paramNames)
+                    if (resolvedIdx >= calleeInfo.paramNames.size) continue
+                    val argName = cs.argValueName ?: continue
 
                     val isReactive = argName in info.localReactiveVars ||
                         run {
                             val callerParamIdx = info.paramNames.indexOf(argName)
-                            callerParamIdx >= 0 && (info.name to callerParamIdx) in derived
+                            callerParamIdx >= 0 && (info.uniqueId to callerParamIdx) in derived
                         }
                     if (isReactive) {
-                        val target = calleeName to paramIdx
+                        val target = calleeInfo.uniqueId to resolvedIdx
                         if (derived.add(target)) {
                             changed = true
                             // Track origin of the reactive state
                             val origin = if (argName in info.localReactiveVars) {
-                                info.name to argName
+                                info.uniqueId to argName
                             } else {
                                 val callerParamIdx = info.paramNames.indexOf(argName)
-                                if (callerParamIdx >= 0) derivedOrigins[info.name to callerParamIdx] else null
+                                if (callerParamIdx >= 0) derivedOrigins[info.uniqueId to callerParamIdx] else null
                             }
                             if (origin != null) {
                                 derivedOrigins[target] = origin
@@ -211,10 +252,10 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         // Reactive-type pass-throughs (State<T>, Flow<T>, etc.)
         for (info in infos) {
             for (paramIdx in info.reactivePassThroughIndices) {
-                val node = info.name to paramIdx
+                val node = info.uniqueId to paramIdx
                 passThroughNodes.add(node)
                 val paramName = info.paramNames[paramIdx]
-                val target = findPassThroughTarget(info, paramName, composableNames)
+                val target = findPassThroughTarget(info, paramName, composableDisplayNames, ::resolveCallee)
                 if (target != null) {
                     passThroughEdges[node] = target
                 }
@@ -224,12 +265,12 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         // Derived reactive pass-throughs (values from mutableStateOf, etc.)
         for (info in infos) {
             for ((idx, paramName) in info.paramNames.withIndex()) {
-                val node = info.name to idx
+                val node = info.uniqueId to idx
                 if (node in passThroughNodes) continue  // Already handled as reactive-type
                 if (node !in derived) continue
-                if (!isPassThrough(info, paramName, composableNames)) continue
+                if (!isPassThrough(info, paramName, composableDisplayNames)) continue
                 passThroughNodes.add(node)
-                val target = findPassThroughTarget(info, paramName, composableNames)
+                val target = findPassThroughTarget(info, paramName, composableDisplayNames, ::resolveCallee)
                 if (target != null) {
                     passThroughEdges[node] = target
                 }
@@ -245,7 +286,7 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
             }
         }
 
-        // ── Build unified origin map: (funcName, paramIdx) -> (originFunc, originVar) ──
+        // ── Build unified origin map: (uniqueId, paramIdx) -> (originUniqueId, originVar) ──
         val origins = mutableMapOf<Pair<String, Int>, Pair<String, String>>()
 
         // Origins from derived analysis (mutableStateOf-based values)
@@ -262,7 +303,7 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         }
         for (info in infos) {
             for (paramIdx in info.reactivePassThroughIndices) {
-                val node = info.name to paramIdx
+                val node = info.uniqueId to paramIdx
                 if (node !in toFlag || node in origins) continue
                 // Trace backward to find the root of this chain
                 var root = node
@@ -270,13 +311,18 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
                     root = reverseEdges[root]!!
                 }
                 // Search composables for who calls the root function with a local reactive var
-                val rootFunc = root.first
+                val rootUniqueId = root.first
                 val rootParamIdx = root.second
+                val rootInfo = infoByUniqueId[rootUniqueId] ?: continue
                 for (callerInfo in infos) {
-                    for ((calleeName, callParamIdx, argName) in callerInfo.callSites) {
-                        if (calleeName == rootFunc && callParamIdx == rootParamIdx && argName != null) {
-                            if (argName in callerInfo.localReactiveVars) {
-                                val origin = callerInfo.name to argName
+                    for (cs in callerInfo.callSites) {
+                        if (cs.calleeName != rootInfo.displayName) continue
+                        val resolved = resolveCallee(cs.calleeName, cs.callArgCount) ?: continue
+                        if (resolved.uniqueId != rootUniqueId) continue
+                        val resolvedIdx = cs.resolveParamIdx(resolved.paramNames)
+                        if (resolvedIdx == rootParamIdx && cs.argValueName != null) {
+                            if (cs.argValueName in callerInfo.localReactiveVars) {
+                                val origin = callerInfo.uniqueId to cs.argValueName
                                 // Set origin for all nodes in the chain from root onward
                                 var chainNode: Pair<String, Int>? = root
                                 while (chainNode != null && chainNode in toFlag) {
@@ -293,22 +339,25 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
         // ── Report only flagged pass-throughs (part of a chain >= 2) ──
         for (info in infos) {
             for ((idx, paramName) in info.paramNames.withIndex()) {
-                val node = info.name to idx
+                val node = info.uniqueId to idx
                 if (node !in toFlag) continue
                 val param = info.uastParams.getOrNull(idx) ?: continue
 
                 val origin = origins[node]
-                val originSuffix = if (origin != null) {
-                    " (originated from variable '${origin.second}' in function '${origin.first}')"
+                val originInfo = if (origin != null) infoByUniqueId[origin.first] else null
+                val originDisplayName = originInfo?.displayName
+
+                val originSuffix = if (origin != null && originDisplayName != null) {
+                    " (originated from variable '${origin.second}' in function '$originDisplayName')"
                 } else ""
 
                 val message = if (idx in info.reactiveParamTypes) {
                     val paramType = info.reactiveParamTypes[idx]!!
-                    "Reactive state parameter '$paramName' of type '$paramType' in function '${info.name}' " +
+                    "Reactive state parameter '$paramName' of type '$paramType' in function '${info.displayName}' " +
                         "is passed through without being used$originSuffix. " +
                         "Consider moving state closer to usage or passing immutable value."
                 } else {
-                    "Reactive state or state-derived parameter '$paramName' in function '${info.name}' " +
+                    "Reactive state or state-derived parameter '$paramName' in function '${info.displayName}' " +
                         "is passed through without being used$originSuffix. " +
                         "Consider moving state closer to usage or passing immutable value."
                 }
@@ -317,13 +366,12 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
                 var location = javaCtx.getLocation(param as UElement)
 
                 // Secondary location: the creation point of the reactive state variable
-                if (origin != null) {
-                    val originInfo = infoByName[origin.first]
-                    val prop = originInfo?.localReactiveVarProperties?.get(origin.second)
+                if (origin != null && originInfo != null) {
+                    val prop = originInfo.localReactiveVarProperties[origin.second]
                     if (prop != null) {
                         location = location.withSecondary(
                             javaCtx.getLocation(prop),
-                            "Reactive state variable '${origin.second}' created here in function '${origin.first}'"
+                            "Reactive state variable '${origin.second}' created here in function '${originInfo.displayName}'"
                         )
                     }
                 }
@@ -364,22 +412,25 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
     }
 
     /**
-     * Find call sites from this composable to others:
-     * (calleeName, paramIndex, argSimpleName).
+     * Find call sites from this composable to others.
+     * Named argument names are captured to correctly resolve parameter indices
+     * regardless of argument order.
      */
-    private fun findCallSites(function: KtFunction): List<Triple<String, Int, String?>> {
-        val sites = mutableListOf<Triple<String, Int, String?>>()
+    private fun findCallSites(function: KtFunction): List<CallSiteArg> {
+        val sites = mutableListOf<CallSiteArg>()
         // Only look at DIRECT call expressions in the function body (not nested in lambdas of remember etc.)
         val body = function.bodyBlockExpression ?: return sites
         for (call in body.findChildrenByClass<KtCallExpression>()) {
             val calleeName = call.calleeExpression?.text ?: continue
+            val callArgCount = call.valueArguments.size
             for ((idx, arg) in call.valueArguments.withIndex()) {
                 val argExpr = arg.getArgumentExpression()?.unwrapParens()
-                val argName = when (argExpr) {
+                val argValueName = when (argExpr) {
                     is KtNameReferenceExpression -> argExpr.getReferencedName()
                     else -> null
                 }
-                sites.add(Triple(calleeName, idx, argName))
+                val namedArgName = arg.getArgumentName()?.asName?.asString()
+                sites.add(CallSiteArg(calleeName, callArgCount, idx, namedArgName, argValueName))
             }
         }
         return sites
@@ -387,16 +438,20 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
 
     /**
      * Find the target composable and param index that a pass-through parameter is forwarded to.
-     * Returns (childFunctionName, childParamIdx) or null if not found in known composables.
+     * Returns (childUniqueId, childParamIdx) or null if not found in known composables.
+     * Uses named argument resolution and overload resolution.
      */
     private fun findPassThroughTarget(
         info: CollectedComposable,
         paramName: String,
-        composableNames: Set<String>,
+        composableDisplayNames: Set<String>,
+        resolveCallee: (String, Int) -> CollectedComposable?,
     ): Pair<String, Int>? {
-        for ((calleeName, paramIdx, argName) in info.callSites) {
-            if (argName == paramName && calleeName in composableNames) {
-                return calleeName to paramIdx
+        for (cs in info.callSites) {
+            if (cs.argValueName == paramName && cs.calleeName in composableDisplayNames) {
+                val calleeInfo = resolveCallee(cs.calleeName, cs.callArgCount) ?: continue
+                val resolvedIdx = cs.resolveParamIdx(calleeInfo.paramNames)
+                return calleeInfo.uniqueId to resolvedIdx
             }
         }
         return null
@@ -407,17 +462,17 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
      * argument), appears exactly once in call sites as an argument to a single composable,
      * and nowhere else.
      */
-    private fun isPassThrough(info: CollectedComposable, paramName: String, composableNames: Set<String>): Boolean {
+    private fun isPassThrough(info: CollectedComposable, paramName: String, composableDisplayNames: Set<String>): Boolean {
         // If the param is consumed locally (used beyond just being a function argument), not pass-through
         if (paramName in info.consumedParams) return false
 
-        val composableArgUses = info.callSites.count { (calleeName, _, argName) ->
-            argName == paramName && calleeName in composableNames
+        val composableArgUses = info.callSites.count { cs ->
+            cs.argValueName == paramName && cs.calleeName in composableDisplayNames
         }
         if (composableArgUses != 1) return false
 
         // Also check there's no OTHER use of the param (e.g. in non-composable calls)
-        val totalArgUses = info.callSites.count { it.third == paramName }
+        val totalArgUses = info.callSites.count { it.argValueName == paramName }
         return totalArgUses == 1
     }
 
@@ -459,14 +514,26 @@ class ReactiveStatePassThroughDetector : ComposableFunctionDetector(), SourceCod
 
     /**
      * Check if a name reference is used only as a direct argument to a function call,
-     * i.e. it appears (possibly wrapped in parentheses) as a KtValueArgument.
+     * i.e. it appears (possibly wrapped in parentheses) as a KtValueArgument value,
+     * OR if it appears as a named argument label (e.g., "state" in "state = value").
      */
     private fun isDirectFunctionArgument(ref: KtNameReferenceExpression): Boolean {
         var node = ref.parent ?: return false
         while (node is KtParenthesizedExpression) {
             node = node.parent ?: return false
         }
-        return node is KtValueArgument
+        // Direct value argument (e.g., `Child(state)`)
+        if (node is KtValueArgument) return true
+        // Named argument label: ref is inside the label part of a value argument.
+        // The parent is some intermediate node (KtValueArgumentName or similar),
+        // and the grandparent is KtValueArgument. In this case, the reference
+        // is not a consumption — it's just the parameter name label.
+        val grandparent = node.parent
+        if (grandparent is KtValueArgument) {
+            val argExpr = grandparent.getArgumentExpression()
+            if (argExpr !== ref) return true
+        }
+        return false
     }
 
     private fun findChildComposableCalls(function: KtFunction, paramName: String): List<KtCallExpression> {
