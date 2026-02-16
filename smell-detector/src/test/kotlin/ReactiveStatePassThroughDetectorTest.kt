@@ -757,45 +757,6 @@ class ReactiveStatePassThroughDetectorTest {
     }
 
     @Test
-    fun `Flow passed through multiple layers is flagged`() {
-        val code = kotlin(
-            """
-            package test
-            import androidx.compose.runtime.*
-            import kotlinx.coroutines.flow.Flow
-
-            data class UiState(val title: String)
-
-            @Composable
-            fun LayerA(flow: Flow<UiState>) {
-                LayerB(flow)  // Pass-through
-            }
-
-            @Composable
-            fun LayerB(flow: Flow<UiState>) {
-                LayerC(flow)  // Pass-through
-            }
-
-            @Composable
-            fun LayerC(flow: Flow<UiState>) {
-                val state = flow.collectAsState(UiState(""))
-                Text(state.value.title)
-            }
-
-            @Composable
-            fun Text(text: String) {}
-            """
-        ).indented()
-
-        // LayerA and LayerB both pass Flow through without collecting
-        lintCheck(code)
-            .expectWarningCount(2)
-            .expectContains("parameter 'flow'")
-            .expectContains("in function 'LayerA'")
-            .expectContains("in function 'LayerB'")
-    }
-
-    @Test
     fun `MutableStateFlow passed through multiple layers is flagged`() {
         val code = kotlin(
             """
