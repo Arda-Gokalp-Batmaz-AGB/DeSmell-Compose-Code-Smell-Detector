@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.uast.UMethod
 import slack.lint.compose.util.findChildrenByClass
@@ -155,7 +156,7 @@ class NonSnapshotAwareCollectionInStateDetector : ComposableFunctionDetector(), 
 
     /**
      * Returns (stateHolderNames, delegatedValueNames).
-     * State holder: val itemsState = remember { mutableStateOf(mutableListOf()) }
+     * State holder: val itemsState = remember { mutableStateOf(mutableListOf()) } or parameter items: MutableState<List<Int>>.
      * Delegated: var items by remember { mutableStateOf(mutableListOf()) }
      */
     private fun collectCandidates(function: KtFunction): Pair<Set<String>, Set<String>> {
@@ -174,7 +175,31 @@ class NonSnapshotAwareCollectionInStateDetector : ComposableFunctionDetector(), 
                 stateHolderNames.add(name)
             }
         }
+
+        // Parameters: items: MutableState<List<Int>> etc. — treat as state holder for in-place mutation checks
+        for (param in function.valueParameters) {
+            val name = param.nameAsName?.asString() ?: continue
+            val typeText = param.typeReference?.text ?: continue
+            if (isParameterTypeNonSnapshotCollectionState(typeText)) {
+                stateHolderNames.add(name)
+            }
+        }
+
         return stateHolderNames to delegatedValueNames
+    }
+
+    /**
+     * True if parameter type is MutableState<...> where the inner type is a non-snapshot collection
+     * (List, MutableList, Map, Set, etc.), e.g. MutableState<List<Int>>, MutableState<MutableMap<K,V>>.
+     */
+    private fun isParameterTypeNonSnapshotCollectionState(typeText: String): Boolean {
+        val t = typeText.replace(" ", "")
+        if (!t.contains("MutableState<") && !t.contains("State<")) return false
+        if (t.contains("SnapshotStateList") || t.contains("SnapshotStateMap")) return false
+        return t.contains("List<") || t.contains("MutableList<") ||
+            t.contains("Map<") || t.contains("MutableMap<") ||
+            t.contains("Set<") || t.contains("MutableSet<") ||
+            t.contains("ArrayList<") || t.contains("HashMap<") || t.contains("HashSet<")
     }
 
     /**

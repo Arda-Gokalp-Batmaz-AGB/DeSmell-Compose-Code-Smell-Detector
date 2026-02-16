@@ -2,6 +2,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestLintResult
 import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
+import com.android.tools.lint.checks.infrastructure.TestMode
 import com.arda.smell_detector.rules.NonSnapshotAwareCollectionInStateIssue
 import org.junit.Test
 import stubs.COMPOSITION_LOCAL_STUBS
@@ -244,5 +245,70 @@ class NonSnapshotAwareCollectionInStateDetectorTest {
         ).indented()
 
         lintCheck(code).expectClean()
+    }
+
+    @Test
+    fun `state passed as parameter and mutated in-place in child composable is flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+
+            @Composable
+            fun Screen2() {
+                val items = remember { mutableStateOf(mutableListOf(1, 2)) }
+                Screenf2(items)
+            }
+
+            @Composable
+            fun Screenf2(items: MutableState<MutableList<Int>>) {
+                LaunchedEffect(Unit) {
+                    items.value.add(3)
+                }
+            }
+            """
+        ).indented()
+
+        // Skip TYPE_ALIAS: detector matches parameter type by name (MutableState<MutableList<Int>>); aliased types would not match.
+        lint()
+            .files(COMPOSITION_LOCAL_STUBS, code)
+            .issues(NonSnapshotAwareCollectionInStateIssue.ISSUE)
+            .allowMissingSdk(true)
+            .skipTestModes(TestMode.TYPE_ALIAS)
+            .run()
+            .expectWarningCount(1)
+            .expectContains("In-place mutation of non-snapshot-aware collection")
+            .expectContains("'items'")
+    }
+
+    @Test
+    fun `state passed as parameter with only reassignment in child is not flagged`() {
+        val code = kotlin(
+            """
+            package test
+            import androidx.compose.runtime.*
+
+            @Composable
+            fun Screen2() {
+                val items = remember { mutableStateOf(listOf(1, 2)) }
+                Screenf2(items)
+            }
+
+            @Composable
+            fun Screenf2(items: MutableState<List<Int>>) {
+                LaunchedEffect(Unit) {
+                    items.value = items.value + 3
+                }
+            }
+            """
+        ).indented()
+
+        lint()
+            .files(COMPOSITION_LOCAL_STUBS, code)
+            .issues(NonSnapshotAwareCollectionInStateIssue.ISSUE)
+            .allowMissingSdk(true)
+            .skipTestModes(TestMode.TYPE_ALIAS)
+            .run()
+            .expectClean()
     }
 }
