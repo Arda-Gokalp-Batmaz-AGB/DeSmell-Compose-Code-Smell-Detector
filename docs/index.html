@@ -392,7 +392,7 @@
   <header>
     <h1>DeSmell — Smell Detection Catalog</h1>
     <p class="subtitle">
-      Complete reference guide for all 13 presentation-layer code smells detected by DeSmell in Jetpack Compose applications.
+      Complete reference guide for all 14 presentation-layer code smells detected by DeSmell in Jetpack Compose applications.
       Each smell includes detection rules, metrics, thresholds, and practical examples to help developers write cleaner, more maintainable Compose code.
     </p>
   </header>
@@ -419,6 +419,7 @@
             <li><a href="#sec">SEC</a></li>
             <li><a href="#slot-count">Slot Count</a></li>
             <li><a href="#reactive-pass-through">Reactive State Pass-Through</a></li>
+            <li><a href="#non-snapshot-collection">Non-Snapshot-Aware Collections in State</a></li>
           </ol>
         </li>
         <li><a href="#appendix-metrics">Metrics Reference</a></li>
@@ -436,7 +437,7 @@
 
         <p>
           <strong>DeSmell</strong> is a static analysis tool that detects code smells in Jetpack Compose presentation layers.
-          It analyzes Kotlin code using AST/UAST analysis to identify 12 distinct types of code smells that violate
+          It analyzes Kotlin code using AST/UAST analysis to identify 14 distinct types of code smells that violate
           declarative UI principles, reduce maintainability, or cause performance issues.
         </p>
 
@@ -483,6 +484,7 @@
             <tr><td><strong>SEC</strong></td><td><code>SideEffectComplexityIssue</code></td><td>Effect complexity</td><td><code>SEC ≥ 10</code></td><td><span class="chip chip-recomp">Side-Effects</span></td></tr>
             <tr><td><strong>Slot Count</strong></td><td><code>SlotCountInComposable</code></td><td>Slot count</td><td><code>&gt; 3</code></td><td><span class="chip chip-api">API Design</span></td></tr>
             <tr><td><strong>Reactive State Pass-Through</strong></td><td><code>ReactiveStatePassThrough</code></td><td>Pass-through chain length</td><td><code>chain ≥ 2</code></td><td><span class="chip chip-recomp">Recomposition</span></td></tr>
+            <tr><td><strong>Non-Snapshot-Aware Collections in State</strong></td><td><code>NonSnapshotAwareCollectionInState</code></td><td>Occurrence</td><td>In-place mutation on state-held collection</td><td><span class="chip chip-recomp">Recomposition</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -1441,6 +1443,83 @@ fun LayerA(flow: Flow&lt;UiState&gt;) {
           <li>Pass immutable snapshots (e.g. <code>state.value</code>) instead of the reactive object when only a snapshot is needed downstream</li>
           <li>Derive specific state (e.g. <code>derivedStateOf</code>) at the layer that needs it instead of passing the full reactive object through</li>
           <li>Eliminate unnecessary intermediate composables that only forward the parameter</li>
+        </ul>
+      </section>
+
+      <!-- 14 -->
+      <section id="non-snapshot-collection">
+        <h2>14. Non-Snapshot-Aware Collections in State</h2>
+        <div class="meta">
+          <span class="detector-id">NonSnapshotAwareCollectionInState</span>
+          <span class="chip chip-recomp">Recomposition Efficiency &amp; State Handling</span>
+        </div>
+
+        <p><strong>What it detects:</strong> Standard Kotlin collections (<code>MutableList</code>, <code>List</code>, <code>Map</code>, <code>MutableMap</code>, <code>Set</code>, <code>MutableSet</code>, <code>ArrayList</code>, <code>HashMap</code>, <code>HashSet</code>) stored inside Compose state (<code>mutableStateOf</code>, <code>remember { mutableStateOf(...) }</code>) and then mutated in-place (e.g. <code>.add()</code>, <code>.remove()</code>, <code>.put()</code>, <code>.clear()</code>). Also detects when such state is passed as a composable parameter and mutated in-place in the receiving composable.</p>
+
+        <h3>Why it matters</h3>
+        <p>Compose's snapshot system observes the <em>state holder</em> (the reference), not internal mutations inside non-snapshot collections. Mutating the contents of a list or map stored in state (e.g. <code>items.value.add(1)</code>) does not trigger recomposition, so the UI will not update. Snapshot-aware collections (<code>mutableStateListOf()</code>, <code>mutableStateMapOf()</code>) or reassigning a new collection (<code>state.value = state.value + newItem</code>) are observed and trigger recomposition correctly.</p>
+
+        <h3>What counts as non-snapshot collection state</h3>
+        <ul>
+          <li>State created with <code>mutableStateOf(mutableListOf(...))</code>, <code>mutableStateOf(arrayListOf(...))</code>, <code>mutableStateOf(mutableMapOf(...))</code>, <code>mutableStateOf(mutableSetOf(...))</code>, etc.</li>
+          <li>Delegated state: <code>var items by remember { mutableStateOf(mutableListOf(...)) }</code> — mutations like <code>items.add(...)</code> are flagged.</li>
+          <li>Parameters of type <code>MutableState&lt;List&lt;T&gt;&gt;</code>, <code>MutableState&lt;MutableList&lt;T&gt;&gt;</code>, <code>MutableState&lt;Map&lt;K,V&gt;&gt;</code>, etc. — in-place mutation in the receiving composable is flagged.</li>
+        </ul>
+
+        <h3>Excluded (not reported)</h3>
+        <ul>
+          <li><code>mutableStateListOf()</code>, <code>mutableStateMapOf()</code> — snapshot-aware; in-place mutations are observed.</li>
+          <li>Reassignment instead of mutation: <code>items.value = items.value + 3</code> or <code>items.value = items.value.toMutableList().apply { add(x) }</code>.</li>
+        </ul>
+
+        <h3>Mutation methods that trigger a report</h3>
+        <p><strong>List/MutableList:</strong> <code>add</code>, <code>addAll</code>, <code>remove</code>, <code>removeAll</code>, <code>removeAt</code>, <code>clear</code>, <code>retainAll</code>, <code>set</code>, <code>sort</code>, <code>shuffle</code>, <code>replaceAll</code></p>
+        <p><strong>Map/MutableMap:</strong> <code>put</code>, <code>putAll</code>, <code>remove</code>, <code>clear</code>, <code>replace</code>, <code>compute</code>, <code>computeIfAbsent</code>, <code>computeIfPresent</code>, <code>merge</code></p>
+        <p><strong>Set/MutableSet:</strong> <code>add</code>, <code>addAll</code>, <code>remove</code>, <code>removeAll</code>, <code>clear</code>, <code>retainAll</code></p>
+
+        <h3>Examples</h3>
+        <div class="code-block">
+          <span class="example-label">❌ Bad</span>
+          <div class="code bad-example">@Composable
+fun Screen() {
+    val items = remember { mutableStateOf(mutableListOf&lt;Int&gt;()) }
+    items.value.add(1)  // ❌ In-place mutation — no recomposition
+}
+
+@Composable
+fun Child(items: MutableState&lt;MutableList&lt;Int&gt;&gt;) {
+    LaunchedEffect(Unit) {
+        items.value.add(2)  // ❌ Same issue when state is passed as parameter
+    }
+}</div>
+        </div>
+
+        <div class="code-block">
+          <span class="example-label">✅ Good</span>
+          <div class="code good-example">@Composable
+fun Screen() {
+    val items = remember { mutableStateListOf&lt;Int&gt;() }  // ✅ Snapshot-aware
+    items.add(1)  // ✅ Triggers recomposition
+}
+
+// Or use reassignment instead of mutation
+@Composable
+fun Screen() {
+    val items = remember { mutableStateOf(listOf(1, 2)) }
+    items.value = items.value + 3  // ✅ Reassignment — triggers recomposition
+}</div>
+        </div>
+
+        <h3>Threshold</h3>
+        <div class="threshold-box">
+          <strong>Per occurrence:</strong> Any in-place mutation of a non-snapshot collection stored in state (or passed as parameter) is reported at the mutation call site.
+        </div>
+
+        <h3>How to fix</h3>
+        <ul>
+          <li>Use <code>mutableStateListOf()</code> or <code>mutableStateMapOf()</code> for list/map state that you need to mutate in-place.</li>
+          <li>Or keep <code>mutableStateOf(listOf(...))</code> and update by reassignment: <code>state.value = state.value + newItem</code> or <code>state.value = state.value.toMutableList().apply { add(x) }</code>.</li>
+          <li>When passing state to child composables, ensure the child does not mutate the collection in-place; use snapshot-aware types or reassignment in the child as well.</li>
         </ul>
       </section>
 
