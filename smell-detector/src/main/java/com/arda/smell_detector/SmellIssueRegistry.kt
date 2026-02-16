@@ -10,6 +10,7 @@ import com.arda.smell_detector.rules.LogicInUiIssue
 import com.arda.smell_detector.rules.MultipleFlowCollectionsPerComposableIssue
 import com.arda.smell_detector.rules.MutableStateInConditionIssue
 import com.arda.smell_detector.rules.MutableStateMutationInComposableIssue
+import com.arda.smell_detector.rules.NonSnapshotAwareCollectionInStateIssue
 import com.arda.smell_detector.rules.NonSavableRememberSaveableIssue
 import com.arda.smell_detector.rules.ReactiveStatePassThroughIssue
 import com.arda.smell_detector.rules.RememberUpdatedStateWithConstantIssue
@@ -30,6 +31,7 @@ class SmellIssueRegistry : IssueRegistry() {
         NonSavableRememberSaveableIssue.ISSUE,
         MultipleFlowCollectionsPerComposableIssue.ISSUE,
         ReactiveStatePassThroughIssue.ISSUE,
+        NonSnapshotAwareCollectionInStateIssue.ISSUE,
         SideEffectComplexityIssue.ISSUE,
         ComposableFunctionComplexityIssue.ISSUE,
         HighSideEffectDensityIssue.ISSUE
