@@ -53,7 +53,6 @@ DeSmell integrates seamlessly with Android Lint, providing real-time feedback du
 DeSmell is available from multiple repositories:
 
 - **JitPack** (Recommended for quick setup) - `com.github.Arda-Gokalp-Batmaz-AGB:DeSmell-Compose-Code-Smell-Detector:1.3.5`
-- **Maven Central** - `com.arda:compose-code-smell-detector:1.3.5`
 - **GitHub Packages** - `com.arda:compose-code-smell-detector:1.3.5`
 
 ### JitPack Integration (Easiest)
@@ -62,8 +61,6 @@ JitPack automatically builds from GitHub releases. No additional setup needed!
 
 **JitPack Coordinate**: `com.github.Arda-Gokalp-Batmaz-AGB:DeSmell-Compose-Code-Smell-Detector:VERSION`
 
-> **Note**: JitPack coordinates are based on your GitHub username and repository name. If you prefer a shorter coordinate, consider using Maven Central instead (see below).
-
 #### Step 1: Add Repository
 
 In your project-level `build.gradle.kts` or `settings.gradle.kts`:
@@ -71,7 +68,6 @@ In your project-level `build.gradle.kts` or `settings.gradle.kts`:
 ```kotlin
 repositories {
     maven { url = uri("https://jitpack.io") }
-    mavenCentral()
     google()
     // ... other repositories
 }
@@ -91,39 +87,6 @@ dependencies {
 - Release tag: `1.3.5` (recommended)
 - Branch: `main-SNAPSHOT` (latest from main branch)
 - Commit hash: `abc123def` (specific commit)
-
-### Maven Central Integration
-
-DeSmell is available via Maven Central. Add the following dependency to your project:
-
-#### Step 1: Add Repository (if not already present)
-
-In your project-level `build.gradle.kts` or `settings.gradle.kts`:
-
-```kotlin
-repositories {
-    mavenCentral()
-    google()
-    // ... other repositories
-}
-```
-
-#### Step 2: Add Dependency
-
-In your app module's `build.gradle.kts`:
-
-```kotlin
-dependencies {
-    lintChecks("com.arda:compose-code-smell-detector:1.3.5")
-}
-```
-
-#### Step 3: Sync Gradle
-
-- Click "Sync Now" when prompted in Android Studio
-- Or use: `File > Sync Project with Gradle Files`
-
-The detector will be available immediately after sync.
 
 ### Local Module Integration (Alternative)
 
