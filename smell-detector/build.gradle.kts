@@ -91,7 +91,7 @@ val signingSecretKeyRingFile: String? = props.getProperty("signing.secretKeyRing
 val signingSecretKey: String? = System.getenv("SIGNING_SECRET_KEY")?.trim() // ASCII armored or base64
 
 // Project metadata
-val projectGroupId = "com.arda"
+val projectGroupId = "io.github.arda-gokalp-batmaz-agb"
 val projectArtifactId = "compose-code-smell-detector"
 val projectVersion = "1.3.8"
 val projectName = "DeSmell - Compose Code Smell Detector"

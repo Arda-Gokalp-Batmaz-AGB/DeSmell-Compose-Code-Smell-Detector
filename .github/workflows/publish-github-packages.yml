@@ -1,4 +1,4 @@
-# Publishes com.arda:compose-code-smell-detector to:
+# Publishes io.github.arda-gokalp-batmaz-agb:compose-code-smell-detector to:
 # - GitHub Packages (always; uses GITHUB_TOKEN)
 # - Maven Central via Sonatype (when SONATYPE_* + SIGNING_* repo secrets are set)
 # Version: smell-detector/build.gradle.kts → projectVersion
@@ -47,13 +47,28 @@ jobs:
           if [ -n "$SONATYPE_USERNAME" ] && [ -n "$SONATYPE_PASSWORD" ] && \
              [ -n "$SIGNING_KEY_ID" ] && [ -n "$SIGNING_PASSWORD" ] && [ -n "$SIGNING_SECRET_KEY" ]; then
             echo "Publishing to Sonatype (Maven Central staging), then GitHub Packages (avoids cross-repo publish quirks)"
+            AUTH_B64=$(printf '%s' "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" | base64 -w0)
+            echo "Cleaning stale open Sonatype staging repositories for profile io.github.arda-gokalp-batmaz-agb (shared runner IP safety)"
+            SEARCH_JSON=$(curl -fsS \
+              -H "Authorization: Bearer ${AUTH_B64}" \
+              "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=client&state=open&profile_id=io.github.arda-gokalp-batmaz-agb" \
+              || echo '{"repositories":[]}')
+            REPO_KEYS=$(printf '%s' "${SEARCH_JSON}" | python3 -c "import json,sys; d=json.load(sys.stdin); print(' '.join(r.get('key','') for r in d.get('repositories',[]) if r.get('key')))" 2>/dev/null || true)
+            if [ -n "${REPO_KEYS}" ]; then
+              for key in ${REPO_KEYS}; do
+                echo "Dropping stale repository: ${key}"
+                curl -fsS -X DELETE \
+                  -H "Authorization: Bearer ${AUTH_B64}" \
+                  "https://ossrh-staging-api.central.sonatype.com/manual/drop/repository/${key}" \
+                  || true
+              done
+            fi
             ./gradlew :smell-detector:publishMavenPublicationToSonatypeRepository --no-daemon --stacktrace
             ./gradlew :smell-detector:publishMavenPublicationToGitHubPackagesRepository --no-daemon --stacktrace
             echo "Notify Central Portal to attach deployment (same IP as uploads)"
-            AUTH_B64=$(printf '%s' "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" | base64 -w0)
             curl -sfS -X POST \
               -H "Authorization: Bearer ${AUTH_B64}" \
-              "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/com.arda?publishing_type=user_managed" \
+              "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.arda-gokalp-batmaz-agb?publishing_type=user_managed" \
               || echo "Warning: manual/upload call failed — check Central Portal docs if deployment is missing"
           else
             echo "Sonatype/signing secrets not fully set; publishing to GitHub Packages only"
