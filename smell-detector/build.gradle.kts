@@ -44,6 +44,18 @@ file("$rootDir/local.properties").takeIf { it.exists() }?.reader(Charsets.UTF_8)
 fun firstNonBlank(vararg candidates: String?): String? =
     candidates.asSequence().mapNotNull { it?.trim()?.takeIf { s -> s.isNotEmpty() } }.firstOrNull()
 
+/** Gradle signing expects an 8-hex-char short key id (e.g. 00B5050F). Use 8, 16 (gpg long id), or 40 (fingerprint) hex chars. */
+fun normalizePgpKeyIdForGradle(raw: String?): String? {
+    val s = raw?.trim()?.removePrefix("0x")?.removePrefix("0X")?.trim() ?: return null
+    if (!s.matches(Regex("[0-9a-fA-F]+"))) return null
+    return when (s.length) {
+        8 -> s.uppercase()
+        16 -> s.takeLast(8).uppercase()
+        40 -> s.takeLast(8).uppercase()
+        else -> null
+    }
+}
+
 // GitHub Packages: Basic auth = GitHub login (PAT owner) + PAT. Order: local.properties → Gradle props → env → GHA defaults.
 val gprUser: String? = firstNonBlank(
     props.getProperty("gpr.user"),
@@ -70,11 +82,13 @@ val sonatypePassword: String? = firstNonBlank(
     System.getenv("SONATYPE_PASSWORD"),
 )
 
-// Signing credentials
-val signingKeyId: String? = props.getProperty("signing.keyId") ?: System.getenv("SIGNING_KEY_ID")
-val signingPassword: String? = props.getProperty("signing.password") ?: System.getenv("SIGNING_PASSWORD")
+// Signing credentials (SIGNING_KEY_ID: 8 hex chars; see normalizePgpKeyIdForGradle)
+val signingKeyId: String? = normalizePgpKeyIdForGradle(
+    props.getProperty("signing.keyId") ?: System.getenv("SIGNING_KEY_ID"),
+)
+val signingPassword: String? = (props.getProperty("signing.password") ?: System.getenv("SIGNING_PASSWORD"))?.trim()
 val signingSecretKeyRingFile: String? = props.getProperty("signing.secretKeyRingFile") ?: System.getenv("SIGNING_SECRET_KEY_RING_FILE")
-val signingSecretKey: String? = System.getenv("SIGNING_SECRET_KEY") // Base64 encoded key
+val signingSecretKey: String? = System.getenv("SIGNING_SECRET_KEY")?.trim() // ASCII armored or base64
 
 // Project metadata
 val projectGroupId = "com.arda"
@@ -98,7 +112,7 @@ signing {
     if (shouldSign) {
         // Use in-memory key from environment variable (CI/CD friendly)
         // The secret key should be base64 encoded or in ASCII-armored format
-        useInMemoryPgpKeys(signingKeyId, signingSecretKey, signingPassword)
+        useInMemoryPgpKeys(signingKeyId!!, signingSecretKey, signingPassword)
         sign(publishing.publications)
     } else {
         // Try to use GPG command line tool (for local development with GPG installed)
