@@ -79,7 +79,7 @@ val signingSecretKey: String? = System.getenv("SIGNING_SECRET_KEY") // Base64 en
 // Project metadata
 val projectGroupId = "com.arda"
 val projectArtifactId = "compose-code-smell-detector"
-val projectVersion = "1.3.6"
+val projectVersion = "1.3.7"
 val projectName = "DeSmell - Compose Code Smell Detector"
 val projectDescription = "Static analysis tool for detecting presentation-layer code smells in Jetpack Compose applications"
 val projectUrl = "https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector"
@@ -169,6 +169,9 @@ publishing {
             credentials {
                 username = sonatypeUsername ?: ""
                 password = sonatypePassword ?: ""
+            }
+            authentication {
+                create<BasicAuthentication>("basic")
             }
         }
         

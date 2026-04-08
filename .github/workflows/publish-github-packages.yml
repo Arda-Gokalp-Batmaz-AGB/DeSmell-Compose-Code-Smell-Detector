@@ -1,13 +1,14 @@
-# Publishes com.arda:compose-code-smell-detector to this repo's GitHub Packages.
-# Uses GITHUB_TOKEN (no personal PAT on your machine). Version comes from smell-detector/build.gradle.kts (projectVersion).
+# Publishes com.arda:compose-code-smell-detector to:
+# - GitHub Packages (always; uses GITHUB_TOKEN)
+# - Maven Central via Sonatype (when SONATYPE_* + SIGNING_* repo secrets are set)
+# Version: smell-detector/build.gradle.kts → projectVersion
 
-name: Publish to GitHub Packages
+name: Publish Maven packages
 
 on:
-  # Normal `git push` to a branch does NOT run this (avoids republishing the same version every commit).
   push:
     tags:
-      - 'v*' # e.g. git tag v1.3.7 && git push origin v1.3.7
+      - 'v*'
   workflow_dispatch:
   release:
     types: [published]
@@ -17,7 +18,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: publish-github-packages-${{ github.ref }}
+  group: publish-maven-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -32,9 +33,22 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Publish Maven package
+      - name: Publish to GitHub Packages (and Maven Central if secrets are set)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_SECRET_KEY: ${{ secrets.SIGNING_SECRET_KEY }}
+          DEVELOPER_EMAIL: ${{ secrets.DEVELOPER_EMAIL }}
         run: |
           chmod +x gradlew
-          ./gradlew :smell-detector:publishMavenPublicationToGitHubPackagesRepository --no-daemon --stacktrace
+          if [ -n "$SONATYPE_USERNAME" ] && [ -n "$SONATYPE_PASSWORD" ] && \
+             [ -n "$SIGNING_KEY_ID" ] && [ -n "$SIGNING_PASSWORD" ] && [ -n "$SIGNING_SECRET_KEY" ]; then
+            echo "Publishing to GitHub Packages + Sonatype (Maven Central staging)"
+            ./gradlew :smell-detector:publish --no-daemon --stacktrace
+          else
+            echo "Sonatype/signing secrets not fully set; publishing to GitHub Packages only"
+            ./gradlew :smell-detector:publishMavenPublicationToGitHubPackagesRepository --no-daemon --stacktrace
+          fi
