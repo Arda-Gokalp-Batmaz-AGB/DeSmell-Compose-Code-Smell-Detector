@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.authentication.http.BasicAuthentication
 
 plugins {
     id("java-library")
@@ -38,15 +39,36 @@ dependencies {
 // -------- Read properties for credentials --------
 //
 val props = Properties()
-file("$rootDir/local.properties").takeIf { it.exists() }?.inputStream()?.use { props.load(it) }
+file("$rootDir/local.properties").takeIf { it.exists() }?.reader(Charsets.UTF_8)?.use { props.load(it) }
 
-// GitHub Packages credentials
-val gprUser: String? = props.getProperty("gpr.user") ?: System.getenv("GPR_USER")
-val gprToken: String? = props.getProperty("gpr.token") ?: System.getenv("GPR_TOKEN")
+fun firstNonBlank(vararg candidates: String?): String? =
+    candidates.asSequence().mapNotNull { it?.trim()?.takeIf { s -> s.isNotEmpty() } }.firstOrNull()
 
-// Maven Central credentials
-val sonatypeUsername: String? = props.getProperty("sonatype.username") ?: System.getenv("SONATYPE_USERNAME")
-val sonatypePassword: String? = props.getProperty("sonatype.password") ?: System.getenv("SONATYPE_PASSWORD")
+// GitHub Packages: Basic auth = GitHub login (PAT owner) + PAT. Order: local.properties → Gradle props → env → GHA defaults.
+val gprUser: String? = firstNonBlank(
+    props.getProperty("gpr.user"),
+    findProperty("gpr.user") as String?,
+    System.getenv("GPR_USER"),
+    System.getenv("GITHUB_ACTOR"),
+)
+val gprToken: String? = firstNonBlank(
+    props.getProperty("gpr.token"),
+    findProperty("gpr.token") as String?,
+    System.getenv("GPR_TOKEN"),
+    System.getenv("GITHUB_TOKEN"),
+)
+
+// Maven Central (Sonatype OSSRH) — token user + token password from https://central.sonatype.com/ or legacy OSSRH
+val sonatypeUsername: String? = firstNonBlank(
+    props.getProperty("sonatype.username"),
+    findProperty("sonatype.username") as String?,
+    System.getenv("SONATYPE_USERNAME"),
+)
+val sonatypePassword: String? = firstNonBlank(
+    props.getProperty("sonatype.password"),
+    findProperty("sonatype.password") as String?,
+    System.getenv("SONATYPE_PASSWORD"),
+)
 
 // Signing credentials
 val signingKeyId: String? = props.getProperty("signing.keyId") ?: System.getenv("SIGNING_KEY_ID")
@@ -57,7 +79,7 @@ val signingSecretKey: String? = System.getenv("SIGNING_SECRET_KEY") // Base64 en
 // Project metadata
 val projectGroupId = "com.arda"
 val projectArtifactId = "compose-code-smell-detector"
-val projectVersion = "1.3.5"
+val projectVersion = "1.3.6"
 val projectName = "DeSmell - Compose Code Smell Detector"
 val projectDescription = "Static analysis tool for detecting presentation-layer code smells in Jetpack Compose applications"
 val projectUrl = "https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector"
@@ -123,7 +145,7 @@ publishing {
                 
                 scm {
                     connection.set("scm:git:git://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector.git")
-                    developerConnection.set("scm:git:ssh://github.com:Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector.git")
                     url.set(projectUrl)
                 }
             }
@@ -131,30 +153,37 @@ publishing {
     }
 
     repositories {
-        // Maven Central (Sonatype)
-        if (sonatypeUsername != null && sonatypePassword != null) {
-            maven {
-                name = "Sonatype"
-                val releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-                val snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
-                url = uri(if (projectVersion.endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl)
-                
-                credentials {
-                    username = sonatypeUsername
-                    password = sonatypePassword
-                }
+        // Local Maven repository (~/.m2/repository)
+        mavenLocal()
+
+        // Maven Central (Sonatype Central Publisher) — use Portal user token, not legacy OSSRH password.
+        // https://central.sonatype.org/publish/generate-portal-token/
+        // Deploy URL: https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
+        maven {
+            name = "Sonatype"
+            val releasesRepoUrl =
+                "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
+            val snapshotsRepoUrl = "https://central.sonatype.com/repository/maven-snapshots/"
+            url = uri(if (projectVersion.endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl)
+
+            credentials {
+                username = sonatypeUsername ?: ""
+                password = sonatypePassword ?: ""
             }
         }
         
-        // GitHub Packages
+        // GitHub Packages (BasicAuthentication sends credentials on first request; avoids some 403 responses)
         if (gprUser != null && gprToken != null) {
             maven {
                 name = "GitHubPackages"
                 url = uri("https://maven.pkg.github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector")
-                
+
                 credentials {
                     username = gprUser
                     password = gprToken
+                }
+                authentication {
+                    create<BasicAuthentication>("basic")
                 }
             }
         }
