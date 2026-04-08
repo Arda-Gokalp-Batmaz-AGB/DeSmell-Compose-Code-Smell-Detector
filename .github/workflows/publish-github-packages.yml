@@ -46,8 +46,15 @@ jobs:
           chmod +x gradlew
           if [ -n "$SONATYPE_USERNAME" ] && [ -n "$SONATYPE_PASSWORD" ] && \
              [ -n "$SIGNING_KEY_ID" ] && [ -n "$SIGNING_PASSWORD" ] && [ -n "$SIGNING_SECRET_KEY" ]; then
-            echo "Publishing to GitHub Packages + Sonatype (Maven Central staging)"
-            ./gradlew :smell-detector:publish --no-daemon --stacktrace
+            echo "Publishing to Sonatype (Maven Central staging), then GitHub Packages (avoids cross-repo publish quirks)"
+            ./gradlew :smell-detector:publishMavenPublicationToSonatypeRepository --no-daemon --stacktrace
+            ./gradlew :smell-detector:publishMavenPublicationToGitHubPackagesRepository --no-daemon --stacktrace
+            echo "Notify Central Portal to attach deployment (same IP as uploads)"
+            AUTH_B64=$(printf '%s' "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" | base64 -w0)
+            curl -sfS -X POST \
+              -H "Authorization: Bearer ${AUTH_B64}" \
+              "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/com.arda?publishing_type=user_managed" \
+              || echo "Warning: manual/upload call failed — check Central Portal docs if deployment is missing"
           else
             echo "Sonatype/signing secrets not fully set; publishing to GitHub Packages only"
             ./gradlew :smell-detector:publishMavenPublicationToGitHubPackagesRepository --no-daemon --stacktrace

@@ -93,7 +93,7 @@ val signingSecretKey: String? = System.getenv("SIGNING_SECRET_KEY")?.trim() // A
 // Project metadata
 val projectGroupId = "com.arda"
 val projectArtifactId = "compose-code-smell-detector"
-val projectVersion = "1.3.7"
+val projectVersion = "1.3.8"
 val projectName = "DeSmell - Compose Code Smell Detector"
 val projectDescription = "Static analysis tool for detecting presentation-layer code smells in Jetpack Compose applications"
 val projectUrl = "https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector"
@@ -153,7 +153,9 @@ publishing {
                 developers {
                     developer {
                         name.set(developerName)
-                        email.set(developerEmail)
+                        if (developerEmail.isNotBlank()) {
+                            email.set(developerEmail)
+                        }
                     }
                 }
                 
@@ -205,6 +207,11 @@ publishing {
             }
         }
     }
+}
+
+// Avoid publishing Gradle .module to Sonatype OSSRH staging (some deployments return HTTP 400 on those files)
+tasks.named("generateMetadataFileForMavenPublication").configure {
+    enabled = false
 }
 
 //
