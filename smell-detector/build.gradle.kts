@@ -93,7 +93,7 @@ val signingSecretKey: String? = System.getenv("SIGNING_SECRET_KEY")?.trim() // A
 // Project metadata
 val projectGroupId = "io.github.arda-gokalp-batmaz-agb"
 val projectArtifactId = "compose-code-smell-detector"
-val projectVersion = "1.3.8"
+val projectVersion = "1.3.9"
 val projectName = "DeSmell - Compose Code Smell Detector"
 val projectDescription = "Static analysis tool for detecting presentation-layer code smells in Jetpack Compose applications"
 val projectUrl = "https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector"
