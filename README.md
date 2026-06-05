@@ -21,7 +21,7 @@ The adoption of declarative UI frameworks like Jetpack Compose invalidates tradi
 
 DeSmell integrates seamlessly with Android Lint, providing real-time feedback during development and automated quality checks in continuous integration pipelines.
 
-> 📘 **📖 Smell Detection Catalog**: For comprehensive documentation with detailed explanations, code examples, and metrics for all code smells, visit the [**DeSmell Smell Detection Catalog**](https://arda-gokalp-batmaz-agb.github.io/DeSmell-Compose-Code-Smell-Detector/) on GitHub Pages. The catalog includes the **Reactive State Pass-Through** smell and **Non-Snapshot-Aware Collections in State** (in-place mutation of standard collections stored in Compose state).
+> 📘 **📖 Smell Detection Catalog**: For comprehensive documentation with detailed explanations, code examples, and metrics for all code smells, visit the [**DeSmell Smell Detection Catalog**](https://arda-gokalp-batmaz-agb.github.io/DeSmell-Compose-Code-Smell-Detector/) on GitHub Pages.
 
 ---
 
