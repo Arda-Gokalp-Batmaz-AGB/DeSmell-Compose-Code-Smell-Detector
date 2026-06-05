@@ -422,10 +422,8 @@ DeSmell was compared against three baseline tools to assess unique coverage:
 For detailed visualizations and charts, refer to the [Results](Results/) folder:
 
 - **[ALL PROPOSED PRESENTATION-LAYER CODE SMELLS](Results/ALL%20PROPOSED%20PRESENTATION-LAYER%20CODE%20SMELLS.png)**: Complete taxonomy of 14 code smells
-- **[TOOL FEASIBILITY MATRIX](Results/TOOL%20FEASIBILITY%20MATRIX%20(EXECUTION%20AND%20COMPOSABLE-SCOPE%20COVERAGE).png)**: Tool applicability and execution coverage
-- **[BASELINE TOOL OUTPUTS RAW VS. COMPOSE-FOCUSED FINDINGS](Results/BASELINE%20TOOL%20OUTPUTS%20RAW%20VS.%20COMPOSE-FOCUSED%20FINDINGS.png)**: Comparison of raw vs. filtered outputs
-- **[COMPOSE-FOCUSED BASELINE FINDINGS PER PROJECT](Results/COMPOSE-FOCUSED%20BASELINE%20FINDINGS%20PER%20PROJECT.png)**: Baseline tool findings across projects
-- **[TOP COMPOSE-FOCUSED BASELINE ISSUES PER PROJECT FOR SLACK COMPOSE LINTS](Results/TOP%20COMPOSE-FOCUSED%20BASELINE%20ISSUES%20PER%20PROJECT%20FOR%20SLACK%20COMPOSE%20LINTS.png)**: Most common issues detected by Slack Compose Lints
+- **[MAPPING DESMELL PRESENTATION-LAYER SMELLS TO CLOSEST BASELINE TOOL SIGNALS](Results/MAPPING%20DESMELL%20PRESENTATION-LAYER%20SMELLS%20TO%20CLOSEST%20BASELINE%20TOOL%20SIGNALS.png)**: Baseline tool applicability, comparability, and analytical gaps for all 14 DeSmell smells
+- **[BASELINE TOOL OUTPUTS RAW VS. COMPOSE-FOCUSED FINDINGS](Results/BASELINE%20TOOL%20OUTPUTS%20RAW%20VS.%20COMPOSE-FOCUSED%20FINDINGS.png)**: Raw vs. Compose-focused baseline outputs across all ten projects (Android Lint, Slack Compose Lints, Compose Stability Analyzer), including per-project Compose-focused counts
 
 ### Validation Methodology
 
