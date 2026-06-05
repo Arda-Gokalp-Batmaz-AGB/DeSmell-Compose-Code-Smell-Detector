@@ -1,0 +1,41 @@
+ID,Function,GroundTruth,Class,Notes
+1,DashboardScreen,CS,1,code smell
+2,ChannelListRegularItem,NS,0,NOT Code Smell
+3,ChannelsListLoaded,CS,1,code smell
+4,PodcastBottomBarStatelessContent,NS,0,NOT Code Smell
+5,CommonTaskHeader,CS,1,code smell
+6,WhatsAppStatus,NS,0,NOT Code Smell
+7,mentionsScreen,CS,1,code smell
+8,AddCarScreen,NS,0,NOT Code Smell
+9,TransactionFinalizer,CS,1,code smell
+10,OCImage,NS,0,NOT Code Smell
+11,customField,CS,1,code smell
+12,CommonTaskAppBar,NS,0,NOT Code Smell
+13,PinsScreenLoaded,CS,1,code smell
+14,MessageReferenced,NS,0,NOT Code Smell
+15,PodcastApp,NS,0,NOT Code Smell
+16,ScrumScreenContent,CS,1,code smell
+17,LazyListScope.CommonTaskAssignees,NS,0,NOT Code Smell
+18,MessageRegular,CS,1,code smell
+19,ChannelListCategoryItem,NS,0,NOT Code Smell
+20,CommonTaskScreen,CS,1,code smell
+21,WhatsAppVideoCallContent,NS,0,NOT Code Smell
+22,EmbedVideo,CS,1,code smell
+23,ChannelsListLoading,NS,0,NOT Code Smell
+24,UserProfileSync,CS,1,code smell
+25,HorizontalTabbedPager,NS,0,NOT Code Smell
+26,WikiListScreen,CS,1,code smell
+27,Chat,NS,0,NOT Code Smell
+28,GuildsListTextItem,CS,1,code smell
+29,EpicItemWithAction,NS,0,NOT Code Smell
+30,KanbanBoard,CS,1,code smell
+31,ReactionsMenu,NS,0,NOT Code Smell
+32,CurrentUserContent,CS,1,code smell
+33,DetailScreen,NS,0,NOT Code Smell
+34,TaskFilters,CS,1,code smell
+35,Editor,NS,0,NOT Code Smell
+36,ChatLoaded,CS,1,code smell
+37,PodcastPlayerBody,CS,1,code smell
+38,HomeScreen,NS,0,NOT Code Smell
+39,MessageMenu,CS,1,code smell
+40,Embed,CS,1,code smell

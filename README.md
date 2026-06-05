@@ -314,14 +314,14 @@ android {
 
 ## Thesis Results and Empirical Evaluation
 
-DeSmell was developed and validated as part of master's thesis research on static detection of presentation-layer code smells in declarative Android architectures. The tool was evaluated on five open-source Jetpack Compose projects to assess its effectiveness and unique coverage compared to baseline tools.
+DeSmell was developed and validated as part of master's thesis research on static detection of presentation-layer code smells in declarative Android architectures. The tool was evaluated on ten open-source Jetpack Compose project snapshots to assess its effectiveness and unique coverage compared to baseline tools. Developer survey validation used a labeled five-project subset drawn from that evaluation dataset.
 
 ### Evaluation Design
 
 The evaluation followed a scope-controlled, reproducible protocol comparing overlap and unique coverage across tools, rather than interpreting raw warning volume as quality. The study analyzed:
 
-- **5 Open-Source Projects**: Only `@Composable` (UI) code was analyzed
-- **4 Baseline Tools**: Android Lint, Slack Compose Lints, Compose Stability Analyzer, and DeSmell
+- **10 Open-Source Projects**: Only `@Composable` (UI) code was analyzed
+- **3 Practical Baselines + DeSmell**: Android Lint (Compose checks), Slack Compose Lints, Compose Stability Analyzer, and DeSmell
 - **Standardized Outputs**: Findings were normalized and compared for overlap and unique coverage
 
 ### Selected Projects
@@ -333,8 +333,13 @@ The evaluation was conducted on the following open-source projects:
 | Podcast App | 2,741 | 1,735 | 53 | 8caa993 |
 | WhatsApp Clone | 4,278 | 874 | 45 | 87c7edc |
 | Cars Application | 3,103 | 384 | 13 | d7f3f0a |
-| Taiga Mobile | 16,539 | 2,270 | 108 | f71ee71 |
+| TaigaMobile | 16,539 | 2,270 | 108 | f71ee71 |
 | OpenCord | 17,125 | 3,431 | 70 | be63630 |
+| ReadYou | 42,369 | 11,004 | 285 | 19d4973 |
+| Afinity | 83,259 | 26,412 | 383 | cb11a06 |
+| Thor | 13,689 | 2,793 | 51 | ae06765 |
+| WhereIsMyMotivation | 13,828 | 3,731 | 152 | 0653f41 |
+| MAuth | 9,587 | 3,011 | 95 | e96cbe3 |
 
 *Reference: [SIZES OF THE SELECTED OPEN-SOURCE PROJECTS](Results/SIZES%20OF%20THE%20SELECTED%20OPEN-SOURCE%20PROJECTS.png)*
 
@@ -342,16 +347,21 @@ The evaluation was conducted on the following open-source projects:
 
 #### Project × DeSmell Detection Distribution
 
-DeSmell detected 41 total code smells across the five projects:
+DeSmell detected **441** total code smells across the ten projects. Although DeSmell defines 14 presentation-layer smells, **9 smell types** appeared in the analyzed snapshots under the adopted scope and counting rule; the remaining smell types were absent in this empirical run and are reported as zero in Table 5.1.
 
-| Project | Const. In Comp. | Multi. Flow Coll. | Comp. Func. Complexity | Logic in UI | Mutable State Cond. | State Mutation | Slot Count | Total |
-|---------|----------------|-------------------|------------------------|-------------|---------------------|----------------|------------|-------|
-| Podcast App | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 2 |
-| WhatsApp Clone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Cars Application | 1 | 0 | 0 | 0 | 1 | 1 | 0 | 3 |
-| Taiga Mobile | 10 | 12 | 4 | 6 | 0 | 0 | 0 | 26 |
-| OpenCord | 1 | 0 | 5 | 1 | 0 | 0 | 3 | 10 |
-| **TOTAL** | **12** | **14** | **9** | **8** | **3** | **2** | **3** | **41** |
+| Project | Const. In Comp. | Multi. Flow Coll. | Comp. Func. Complexity | Logic in UI | Mutable State Cond. | State Mutation | Slot Count | SEC | SED | Total |
+|---------|----------------|-------------------|------------------------|-------------|---------------------|----------------|------------|-----|-----|-------|
+| Podcast App | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 2 |
+| WhatsApp Clone | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Cars Application | 1 | 0 | 0 | 0 | 1 | 1 | 0 | 0 | 0 | 3 |
+| TaigaMobile | 10 | 12 | 4 | 6 | 0 | 0 | 0 | 0 | 0 | 32 |
+| OpenCord | 1 | 0 | 5 | 1 | 0 | 0 | 3 | 0 | 0 | 10 |
+| ReadYou | 4 | 0 | 31 | 22 | 11 | 2 | 2 | 1 | 1 | 74 |
+| Afinity | 5 | 26 | 96 | 91 | 10 | 3 | 0 | 0 | 2 | 233 |
+| Thor | 0 | 2 | 11 | 9 | 0 | 0 | 0 | 0 | 0 | 22 |
+| WhereIsMyMotivation | 0 | 2 | 8 | 17 | 0 | 0 | 0 | 0 | 0 | 27 |
+| MAuth | 0 | 4 | 17 | 6 | 1 | 0 | 9 | 1 | 0 | 38 |
+| **TOTAL** | **21** | **46** | **172** | **152** | **25** | **6** | **14** | **2** | **3** | **441** |
 
 *Reference: [PROJECT × DESMELL DETECTION DISTRIBUTION](Results/PROJECT%20×%20DESMELL%20DETECTION%20DISTRIBUTION%20(FILE%20×%20SMELL).png)*
 
@@ -364,8 +374,13 @@ Detection density (detections per 1,000 lines of UI code):
 | Podcast App | 1,735 | 2 | 1.15 |
 | WhatsApp Clone | 874 | 0 | 0.00 |
 | Cars Application | 384 | 3 | 7.81 |
-| Taiga Mobile | 2,270 | 26 | 11.45 |
+| TaigaMobile | 2,270 | 32 | 14.09 |
 | OpenCord | 3,431 | 10 | 2.91 |
+| ReadYou | 11,004 | 74 | 6.72 |
+| Afinity | 26,412 | 233 | 8.82 |
+| Thor | 2,793 | 22 | 7.88 |
+| WhereIsMyMotivation | 3,731 | 27 | 7.24 |
+| MAuth | 3,011 | 38 | 12.62 |
 
 *Reference: [DESMELL DETECTION DENSITY PER PROJECT](Results/DESMELL%20DETECTION%20DENSITY%20PER%20PROJECT.png)*
 
@@ -381,6 +396,8 @@ DeSmell was compared against three baseline tools to assess unique coverage:
 | Declaring Constants Inside Composables | Recomposition Efficiency & State Handling | None | — | None |
 | Mutable States Mutated in Compose | Recomposition Efficiency & State Handling | Generic side-effect misuse warnings | Android Lint (Compose) | Partial |
 | Using rememberUpdatedState for Constants | Recomposition Efficiency & State Handling | API misuse hints | Slack Compose Lints | Partial |
+| Reactive State Propagation Depth (RSPD) | Architectural Responsibility & Logic Leakage | None | — | None |
+| Using Non-Snapshot-Aware Collections in State | Recomposition Efficiency & State Handling | None | — | None |
 | Logic in UI Density (LIU) | Architectural Responsibility & Logic Leakage | None | — | None |
 | Multiple Flow Collections per Composable | Architectural Responsibility & Logic Leakage | None | — | None |
 | Composable Function Complexity (CFC) | Architectural Responsibility & Logic Leakage | None | — | None |
@@ -394,16 +411,17 @@ DeSmell was compared against three baseline tools to assess unique coverage:
 
 #### Key Findings
 
-- **Unique Coverage**: 7 out of 12 DeSmell detectors have no equivalent in baseline tools (marked as "None")
+- **Unique Coverage**: 8 out of 14 DeSmell detectors have no equivalent in baseline tools (marked as "None")
 - **Partial Overlap**: 4 detectors have partial comparability with baseline tools but detect different aspects
+- **Weak Overlap**: 1 detector (Slot Count) has weak comparability with Slack Compose Lints
 - **Strong Overlap**: Only 1 detector (Non-Savable Type in rememberSaveable) has strong comparability with Android Lint
-- **Architectural Focus**: DeSmell uniquely identifies architectural degradation patterns (LIU, CFC, Multiple Flow Collections, SED) not covered by rule-based linters
+- **Architectural Focus**: DeSmell uniquely identifies architectural degradation patterns (LIU, CFC, Multiple Flow Collections, SED, RSPD) not covered by rule-based linters
 
 ### Visual Results
 
 For detailed visualizations and charts, refer to the [Results](Results/) folder:
 
-- **[ALL PROPOSED PRESENTATION-LAYER CODE SMELLS](Results/ALL%20PROPOSED%20PRESENTATION-LAYER%20CODE%20SMELLS.png)**: Complete taxonomy of 12 code smells
+- **[ALL PROPOSED PRESENTATION-LAYER CODE SMELLS](Results/ALL%20PROPOSED%20PRESENTATION-LAYER%20CODE%20SMELLS.png)**: Complete taxonomy of 14 code smells
 - **[TOOL FEASIBILITY MATRIX](Results/TOOL%20FEASIBILITY%20MATRIX%20(EXECUTION%20AND%20COMPOSABLE-SCOPE%20COVERAGE).png)**: Tool applicability and execution coverage
 - **[BASELINE TOOL OUTPUTS RAW VS. COMPOSE-FOCUSED FINDINGS](Results/BASELINE%20TOOL%20OUTPUTS%20RAW%20VS.%20COMPOSE-FOCUSED%20FINDINGS.png)**: Comparison of raw vs. filtered outputs
 - **[COMPOSE-FOCUSED BASELINE FINDINGS PER PROJECT](Results/COMPOSE-FOCUSED%20BASELINE%20FINDINGS%20PER%20PROJECT.png)**: Baseline tool findings across projects
@@ -411,24 +429,115 @@ For detailed visualizations and charts, refer to the [Results](Results/) folder:
 
 ### Validation Methodology
 
-The metrics, thresholds, and detection rules implemented in DeSmell have been validated through a comprehensive developer feedback process. This validation ensures that the tool's detections align with real-world developer perceptions of code quality issues in Jetpack Compose codebases.
+The metrics, thresholds, and detection rules implemented in DeSmell have been validated through a comprehensive developer feedback process. Thresholds and decision rules were fixed **before** survey deployment; survey responses were used to assess agreement and interpretability rather than to tune detector thresholds. This validation ensures that the tool's detections align with real-world developer perceptions of code quality issues in Jetpack Compose codebases.
+
+#### Survey Dataset Artifacts
+
+The labeled validation dataset and anonymized raw survey responses are published in the repository in both **CSV** (for scripts, diffing, and reproducibility) and **XLSX** (for spreadsheet viewing):
+
+| Dataset | CSV | XLSX |
+|---------|-----|------|
+| Labeled validation dataset (40 composable stimuli with DeSmell CS/NS ground-truth labels) | [`Developer_Survey_Labeled_Data.csv`](docs/Developer_Survey_Labeled_Data.csv) | [`Developer_Survey_Labeled_Data.xlsx`](docs/Developer_Survey_Labeled_Data.xlsx) |
+| Anonymized raw Google Form responses (9 participants × 40 maintainability questions) | [`Developer_Survey_Results.csv`](docs/Developer_Survey_Results.csv) | [`Developer_Survey_Results.xlsx`](docs/Developer_Survey_Results.xlsx) |
+
+#### Labeled Validation Dataset
+
+Each row in `Developer_Survey_Labeled_Data.csv` / `.xlsx` links one survey stimulus to its DeSmell classification:
+
+| Column | Description |
+|--------|-------------|
+| `ID` | Stimulus identifier (1–40) |
+| `Function` | Composable function name shown in the survey |
+| `GroundTruth` | DeSmell label: `CS` (Code Smell) or `NS` (Not Code Smell) |
+| `Class` | Binary encoding (`1` = CS, `0` = NS) |
+| `Notes` | Label description |
+
+**Summary:** 40 composable functions — **21 Code Smell (CS)**, **19 Not Code Smell (NS)** — drawn from the five-project evaluation subset (Podcast App, WhatsApp Clone, Cars Application, TaigaMobile, OpenCord).
+
+| ID | Function | Ground Truth | ID | Function | Ground Truth |
+|----|----------|--------------|----|----------|--------------|
+| 1 | DashboardScreen | CS | 21 | WhatsAppVideoCallContent | NS |
+| 2 | ChannelListRegularItem | NS | 22 | EmbedVideo | CS |
+| 3 | ChannelsListLoaded | CS | 23 | ChannelsListLoading | NS |
+| 4 | PodcastBottomBarStatelessContent | NS | 24 | UserProfileSync | CS |
+| 5 | CommonTaskHeader | CS | 25 | HorizontalTabbedPager | NS |
+| 6 | WhatsAppStatus | NS | 26 | WikiListScreen | CS |
+| 7 | mentionsScreen | CS | 27 | Chat | NS |
+| 8 | AddCarScreen | NS | 28 | GuildsListTextItem | CS |
+| 9 | TransactionFinalizer | CS | 29 | EpicItemWithAction | NS |
+| 10 | OCImage | NS | 30 | KanbanBoard | CS |
+| 11 | customField | CS | 31 | ReactionsMenu | NS |
+| 12 | CommonTaskAppBar | NS | 32 | CurrentUserContent | CS |
+| 13 | PinsScreenLoaded | CS | 33 | DetailScreen | NS |
+| 14 | MessageReferenced | NS | 34 | TaskFilters | CS |
+| 15 | PodcastApp | NS | 35 | Editor | NS |
+| 16 | ScrumScreenContent | CS | 36 | ChatLoaded | CS |
+| 17 | LazyListScope.CommonTaskAssignees | NS | 37 | PodcastPlayerBody | CS |
+| 18 | MessageRegular | CS | 38 | HomeScreen | NS |
+| 19 | ChannelListCategoryItem | NS | 39 | MessageMenu | CS |
+| 20 | CommonTaskScreen | CS | 40 | Embed | CS |
 
 #### Developer Feedback Validation
 
 The validation process involved:
 
-1. **Developer Surveys**: Structured surveys were conducted with developers using the tool to evaluate whether detected code patterns represent actual maintainability, modifiability, readability, testability, recomposition/performance, and lifecycle/state management problems.
+1. **Developer Surveys**: Structured surveys were conducted with developers to evaluate whether code fragments flagged (or not flagged) by DeSmell represent actual maintainability, modifiability, readability, testability, recomposition/performance, and lifecycle/state management problems — without revealing smell terminology or tool labels during evaluation.
 
-2. **Threshold Calibration**: Default thresholds for metrics such as Composable Function Complexity (CFC), Side Effect Density (SED), Logic in UI Density (LIU), and Slot Count were refined based on developer feedback to balance sensitivity and practical utility.
+2. **Fixed Thresholds**: Default thresholds for metrics such as Composable Function Complexity (CFC), Side Effect Density (SED), Logic in UI Density (LIU), and Slot Count were established prior to the survey and held constant throughout validation.
 
-3. **Pattern Validation**: Each code smell pattern was evaluated by developers to confirm that detections correspond to genuine architectural and maintainability concerns rather than false positives.
+3. **Pattern Validation**: Each code smell pattern was evaluated against developer judgments to confirm that detections correspond to genuine architectural and maintainability concerns rather than false positives.
+
+#### Participant Profiles
+
+Profiles were extracted from the anonymized responses in `Developer_Survey_Results.csv` / `.xlsx` (n = 9):
+
+| Attribute | Category | Count |
+|-----------|----------|-------|
+| Android experience | 0–1 years | 4 |
+| | 1–3 years | 1 |
+| | 5–8 years | 2 |
+| | 8+ years | 2 |
+| Compose experience | 0–1 years | 4 |
+| | 1–3 years | 1 |
+| | 3–5 years | 3 |
+| | 5+ years | 1 |
+| Static analysis tools | Android Lint (Compose) only | 3 |
+| | Multiple tools | 4 |
+| | None / Missing | 2 |
+
+Roles: 7 Android Developers, 2 Analysts. Participants evaluated 40 composable fragments each using a three-option scale (*Evet* / *Hayır* / *Emin değilim*).
+
+#### Survey Results Summary
+
+The developer survey evaluated **40** Jetpack Compose composable functions (**21** Code Smell, **19** Not Code Smell) with **9** participants, yielding **360** total judgments and **348** valid judgments after excluding *Not sure* (*Emin değilim*) responses:
+
+**Aggregated confusion matrix** (DeSmell labels as predictions, developer judgments as perceived labels; CS = positive class):
+
+| | Predicted CS | Predicted NS |
+|---|-------------|-------------|
+| **Actual CS** | 150 (TP) | 31 (FN) |
+| **Actual NS** | 60 (FP) | 107 (TN) |
+
+| Metric | Value |
+|--------|-------|
+| Accuracy | 73.85% |
+| Precision (CS) | 71.43% |
+| Recall (CS) | 82.87% |
+| Specificity (NS) | 64.07% |
+| F1-score (CS) | 76.73% |
+| Balanced Accuracy | 73.47% |
+| MCC | 0.479 |
+| Fleiss' κ (inter-rater) | 0.269 |
+| Function-level agreement (majority vote) | 89.74% (35/39) |
+
+Raw per-participant responses for all 40 stimuli are available in [`docs/Developer_Survey_Results.csv`](docs/Developer_Survey_Results.csv) and [`docs/Developer_Survey_Results.xlsx`](docs/Developer_Survey_Results.xlsx).
 
 #### Survey Links
 
 Developers can participate in the ongoing validation process by completing the following surveys:
 
-- **English Survey**: [Jetpack Compose UI Codes Evaluation Survey](https://forms.gle/qvK3PByDTMNQevCNA)
-- **Turkish Survey**: [Jetpack Compose UI Kodları Değerlendirme Anketi](https://forms.gle/ZrKVAi5C8Pjj58iZA)
+- **English Survey**: [Jetpack Compose UI Codes Evaluation Survey](https://forms.gle/mzmDafk6mxFbqvqQ8)
+- **Turkish Survey**: [Jetpack Compose UI Kodları Değerlendirme Anketi](https://forms.gle/Eb3Duh2SHMFaPsB37)
 
 These surveys evaluate Jetpack Compose UI code snippets to assess whether certain code patterns cause problems in terms of maintainability, modifiability, readability, testability, recomposition/performance, and lifecycle/state management. All responses are used anonymously for academic research purposes.
 
@@ -438,15 +547,17 @@ The empirical results confirm that:
 
 1. **DeSmell detects unique maintainability flaws** distinct from standard tools like Slack Compose Lints or Android Lint
 2. **Metric-based analysis is necessary** for modern declarative architectures, as rule-based linters miss architectural degradation patterns
-3. **Detection density varies** across projects (0.00 to 11.45 detections per 1k LOC), indicating project-specific quality characteristics
-4. **Architectural smells are prevalent** in real-world projects, with Multiple Flow Collections (14 detections) and Constants in Composables (12 detections) being most common
-5. **Developer-validated thresholds** ensure that detections align with practical developer concerns about code quality
+3. **Detection density varies** across projects (0.00 to 14.09 detections per 1k LOC), indicating project-specific quality characteristics
+4. **Architectural smells are prevalent** in real-world projects, with Composable Function Complexity (172 detections), Logic in UI Density (152), and Multiple Flow Collections (46) being most common
+5. **Developer-validated thresholds** show moderate alignment with practitioner perception (73.85% accuracy, MCC 0.479) while surfacing reproducible judgments for perception-sensitive cases
 
 ### Academic Reference
 
 For detailed methodology, theoretical foundations, and complete evaluation results, see:
 
 - **Results Folder**: [Results/](Results/) - Contains all evaluation tables, charts, and visualizations
+- **Survey Labeled Dataset**: [CSV](docs/Developer_Survey_Labeled_Data.csv) · [XLSX](docs/Developer_Survey_Labeled_Data.xlsx) — 40 composable stimuli with DeSmell CS/NS ground-truth labels
+- **Survey Raw Responses**: [CSV](docs/Developer_Survey_Results.csv) · [XLSX](docs/Developer_Survey_Results.xlsx) — Anonymized developer survey responses (9 participants)
 - **Research Repository**: [GitHub Repository](https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector)
 
 ---
@@ -455,7 +566,7 @@ For detailed methodology, theoretical foundations, and complete evaluation resul
 
 DeSmell implements 14 specialized detectors for identifying presentation-layer code smells in Jetpack Compose applications:
 
-> 📖 **Detailed Documentation**: For comprehensive information about each smell, including detection rules, metrics, formulas, thresholds, and practical code examples, see the [**DeSmell Smell Detection Catalog**](docs/DeSmell_Smell_Catalog.html). The catalog provides developer-friendly explanations, good/bad code examples, and actionable guidance for fixing each detected smell.
+> 📖 **Detailed Documentation**: For comprehensive information about each smell, including detection rules, metrics, formulas, thresholds, and practical code examples, see the [**DeSmell Smell Detection Catalog**](https://arda-gokalp-batmaz-agb.github.io/DeSmell-Compose-Code-Smell-Detector/) on GitHub Pages. The catalog provides developer-friendly explanations, good/bad code examples, and actionable guidance for fixing each detected smell.
 
 ### Complete Detector Reference
 
@@ -747,15 +858,20 @@ The following open-source projects were used in the empirical evaluation:
 1. **Podcast App** - [fabirt/podcast-app](https://github.com/fabirt/podcast-app) (Commit: 8caa993)
 2. **WhatsApp Clone** - [GetStream/whatsApp-clone-compose](https://github.com/GetStream/whatsApp-clone-compose) (Commit: 87c7edc)
 3. **Cars Application** - [rancicdevelopment/Cars-Application-2024](https://github.com/rancicdevelopment/Cars-Application-2024) (Commit: d7f3f0a)
-4. **Taiga Mobile** - [EugeneTheDev/TaigaMobile](https://github.com/EugeneTheDev/TaigaMobile) (Commit: f71ee71)
+4. **TaigaMobile** - [EugeneTheDev/TaigaMobile](https://github.com/EugeneTheDev/TaigaMobile) (Commit: f71ee71)
 5. **OpenCord** - [MateriiApps/OpenCord](https://github.com/MateriiApps/OpenCord) (Commit: be63630)
+6. **ReadYou** - [ReadYouApp/ReadYou](https://github.com/ReadYouApp/ReadYou) (Commit: 19d4973)
+7. **Afinity** - [MakD/AFinity](https://github.com/MakD/AFinity) (Commit: cb11a06)
+8. **Thor** - [trinadhthatakula/Thor](https://github.com/trinadhthatakula/Thor) (Commit: ae06765)
+9. **WhereIsMyMotivation** - [afteracademy/wimm-android-app](https://github.com/afteracademy/wimm-android-app) (Commit: 0653f41)
+10. **MAuth** - [X1nto/Mauth](https://github.com/X1nto/Mauth) (Commit: e96cbe3)
 
 ### Citation
 
 If you use DeSmell in academic work, please cite:
 
 ```
-Gökalp Batmaz, A. (2024). DeSmell: Static Detection of Presentation-Layer Code Smells 
+Gökalp Batmaz, A. (2026). DeSmell: Static Detection of Presentation-Layer Code Smells 
 in Declarative Android Architectures. Master's Thesis, Istanbul Technical University.
 GitHub Repository: https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector
 ```
