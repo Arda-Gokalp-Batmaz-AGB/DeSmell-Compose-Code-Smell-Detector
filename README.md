@@ -1,6 +1,6 @@
 # DeSmell: Static Detection of Presentation-Layer Code Smells in Declarative Android Architectures
 
-[![Version](https://img.shields.io/badge/version-1.3.5-blue.svg)](https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector)
+[![Version](https://img.shields.io/badge/version-1.3.9-blue.svg)](https://github.com/Arda-Gokalp-Batmaz-AGB/DeSmell-Compose-Code-Smell-Detector)
 [![Lint API](https://img.shields.io/badge/Lint%20API-31.5.0-green.svg)](https://developer.android.com/studio/write/lint)
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple.svg)](https://kotlinlang.org/)
 [![AGP](https://img.shields.io/badge/AGP-8.6.0-orange.svg)](https://developer.android.com/studio/releases/gradle-plugin)
@@ -46,20 +46,13 @@ DeSmell integrates seamlessly with Android Lint, providing real-time feedback du
 
 ### Current Version
 
-**Latest Version**: `1.3.5`
+**Latest Version**: `1.3.9`
 
-### Available Repositories
+**Maven Coordinate**: `io.github.arda-gokalp-batmaz-agb:compose-code-smell-detector:1.3.9`
 
-DeSmell is available from multiple repositories:
+### Maven Central Integration
 
-- **JitPack** (Recommended for quick setup) - `com.github.Arda-Gokalp-Batmaz-AGB:DeSmell-Compose-Code-Smell-Detector:1.3.5`
-- **GitHub Packages** - `com.arda:compose-code-smell-detector:1.3.5`
-
-### JitPack Integration (Easiest)
-
-JitPack automatically builds from GitHub releases. No additional setup needed!
-
-**JitPack Coordinate**: `com.github.Arda-Gokalp-Batmaz-AGB:DeSmell-Compose-Code-Smell-Detector:VERSION`
+DeSmell is published to Maven Central. Ensure `mavenCentral()` is in your repository list (it is included by default in modern Android projects).
 
 #### Step 1: Add Repository
 
@@ -67,7 +60,7 @@ In your project-level `build.gradle.kts` or `settings.gradle.kts`:
 
 ```kotlin
 repositories {
-    maven { url = uri("https://jitpack.io") }
+    mavenCentral()
     google()
     // ... other repositories
 }
@@ -79,31 +72,7 @@ In your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    lintChecks("com.github.Arda-Gokalp-Batmaz-AGB:DeSmell-Compose-Code-Smell-Detector:1.3.5")
-}
-```
-
-**Version Options**:
-- Release tag: `1.3.5` (recommended)
-- Branch: `main-SNAPSHOT` (latest from main branch)
-- Commit hash: `abc123def` (specific commit)
-
-### Local Module Integration (Alternative)
-
-If you prefer to include the module directly in your project:
-
-1. **Clone or include the module** in your project:
-
-```kotlin
-// settings.gradle.kts
-include(":smell-detector")
-```
-
-2. **Add dependency** in your app module's `build.gradle.kts`:
-
-```kotlin
-dependencies {
-    lintChecks(project(":smell-detector"))
+    lintChecks("io.github.arda-gokalp-batmaz-agb:compose-code-smell-detector:1.3.9")
 }
 ```
 
@@ -859,5 +828,5 @@ This project builds upon and extends the work of several foundational projects:
 ---
 
 **Last Updated**: 2026  
-**Version**: 1.3.5  
+**Version**: 1.3.9  
 **Maintainer**: Arda Gökalp Batmaz
